@@ -95,13 +95,32 @@ foreach ($rigName in $rigResourceNames) {
     $rigResourceArgs += "/resource:$rigPath,CocoDesktopPet.rig_$rigName"
 }
 
-$frameResourceArgs = @("/resource:$baseFramePath,CocoDesktopPet.frame_base.png")
-foreach ($idleFrame in $idleFrameFiles) {
-    $frameResourceArgs += "/resource:$($idleFrame.FullName),CocoDesktopPet.frame_$($idleFrame.Name)"
+$frameArchivePath = Join-Path $distDir 'frame_animation.zip'
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archiveStream = [System.IO.File]::Open($frameArchivePath, [System.IO.FileMode]::Create)
+$archive = New-Object System.IO.Compression.ZipArchive(
+    $archiveStream, [System.IO.Compression.ZipArchiveMode]::Create, $false)
+try {
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive, $baseFramePath, 'frame_base.png',
+        [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
+    foreach ($idleFrame in $idleFrameFiles) {
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $archive, $idleFrame.FullName, "frame_$($idleFrame.Name)",
+            [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
+    }
+    foreach ($actionFrame in $actionFrameFiles) {
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $archive, $actionFrame.FullName, "frame_$($actionFrame.Name)",
+            [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
+    }
 }
-foreach ($actionFrame in $actionFrameFiles) {
-    $frameResourceArgs += "/resource:$($actionFrame.FullName),CocoDesktopPet.frame_$($actionFrame.Name)"
+finally {
+    $archive.Dispose()
+    $archiveStream.Dispose()
 }
+$frameResourceArgs = @("/resource:$frameArchivePath,CocoDesktopPet.frame_animation.zip")
 
 $compilerArgs = @(
     '/nologo',
@@ -115,12 +134,15 @@ $compilerArgs = @(
     '/reference:System.dll',
     '/reference:System.Core.dll',
     '/reference:System.Drawing.dll',
+    '/reference:System.IO.Compression.dll',
     '/reference:System.Windows.Forms.dll'
 ) + $rigResourceArgs + $frameResourceArgs + $sourceFiles
 
 & $compiler $compilerArgs
-if ($LASTEXITCODE -ne 0) {
-    throw "Compilation failed with exit code: $LASTEXITCODE"
+$compileExitCode = $LASTEXITCODE
+Remove-Item -LiteralPath $frameArchivePath -Force
+if ($compileExitCode -ne 0) {
+    throw "Compilation failed with exit code: $compileExitCode"
 }
 
 Write-Host "Build complete: $outputPath"

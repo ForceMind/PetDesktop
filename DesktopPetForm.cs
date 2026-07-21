@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -166,6 +167,8 @@ namespace CocoDesktopPet
         private Bitmap outfitCape;
         private Bitmap outfitGlasses;
         private Bitmap outfitCap;
+        private static Stream frameArchiveStream;
+        private static ZipArchive frameArchive;
         private double scaleFactor = 1.0;
         private int petWidth;
         private int petHeight;
@@ -380,6 +383,16 @@ namespace CocoDesktopPet
             DisposeBitmap(ref outfitCape);
             DisposeBitmap(ref outfitGlasses);
             DisposeBitmap(ref outfitCap);
+            if (frameArchive != null)
+            {
+                frameArchive.Dispose();
+                frameArchive = null;
+            }
+            if (frameArchiveStream != null)
+            {
+                frameArchiveStream.Dispose();
+                frameArchiveStream = null;
+            }
             base.OnFormClosed(e);
         }
 
@@ -495,12 +508,24 @@ namespace CocoDesktopPet
         private static Bitmap LoadResourceBitmap(string resourceName)
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
-            using (Stream stream = assembly.GetManifestResourceStream("CocoDesktopPet." + resourceName))
+            Stream stream = assembly.GetManifestResourceStream("CocoDesktopPet." + resourceName);
+            if (stream == null && resourceName.StartsWith("frame_", StringComparison.Ordinal))
             {
-                if (stream == null)
+                EnsureFrameArchive();
+                ZipArchiveEntry entry = frameArchive.GetEntry(resourceName);
+                if (entry != null)
                 {
-                    throw new InvalidOperationException("Missing embedded rig resource: " + resourceName);
+                    stream = entry.Open();
                 }
+            }
+
+            if (stream == null)
+            {
+                throw new InvalidOperationException("Missing embedded image resource: " + resourceName);
+            }
+
+            using (stream)
+            {
                 using (Bitmap source = new Bitmap(stream))
                 {
                     Bitmap copy = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
@@ -511,6 +536,21 @@ namespace CocoDesktopPet
                     return copy;
                 }
             }
+        }
+
+        private static void EnsureFrameArchive()
+        {
+            if (frameArchive != null)
+            {
+                return;
+            }
+            frameArchiveStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(
+                "CocoDesktopPet.frame_animation.zip");
+            if (frameArchiveStream == null)
+            {
+                throw new InvalidOperationException("Missing embedded frame animation archive.");
+            }
+            frameArchive = new ZipArchive(frameArchiveStream, ZipArchiveMode.Read, false);
         }
 
         private static void DisposeBitmap(ref Bitmap image)
@@ -553,28 +593,12 @@ namespace CocoDesktopPet
 
         private static Bitmap[] LoadImageSequence(string prefix, int count)
         {
-            Assembly assembly = Assembly.GetExecutingAssembly();
             Bitmap[] images = new Bitmap[count];
             for (int index = 0; index < count; index++)
             {
-                string resourceName = string.Format("CocoDesktopPet.{0}_{1:D2}.png",
+                string resourceName = string.Format("{0}_{1:D2}.png",
                     prefix, index + 1);
-                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-                {
-                    if (stream == null)
-                    {
-                        throw new InvalidOperationException("找不到待机图片资源：" + resourceName);
-                    }
-
-                    using (Bitmap source = new Bitmap(stream))
-                    {
-                        images[index] = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
-                        using (Graphics graphics = Graphics.FromImage(images[index]))
-                        {
-                            graphics.DrawImageUnscaled(source, 0, 0);
-                        }
-                    }
-                }
+                images[index] = LoadResourceBitmap(resourceName);
             }
             return images;
         }

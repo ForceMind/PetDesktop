@@ -3,6 +3,11 @@
 本文件记录面向用户的重要变更。版本发布包可在
 [GitHub Releases](https://github.com/ForceMind/PetDesktop/releases) 获取。
 
+## v1.3.1 - 2026-07-21
+
+- Windows 构建改为先把 265 张生产帧打入单一内嵌归档，绕过 GitHub Actions 长工作目录下的
+  Windows 命令行长度上限；最终交付仍是一个可双击运行的 EXE。
+
 ## v1.3.0 - 2026-07-21
 
 ### 逐帧动画重构

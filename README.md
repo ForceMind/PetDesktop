@@ -16,7 +16,7 @@ Coco 是一个面向 Windows 和 macOS 的透明桌面宠物。角色以
 - Windows：下载 EXE 文件，双击即可运行，无需安装。
 - macOS：下载 macOS ZIP，解压后运行 `Coco桌宠.app`。
 
-当前稳定版本为 `v1.3.0`。macOS 包使用本地临时签名；首次启动若被 Gatekeeper 阻止，
+当前稳定版本为 `v1.3.1`。macOS 包使用本地临时签名；首次启动若被 Gatekeeper 阻止，
 请在 Finder 中右键应用并选择“打开”。
 
 ## 主要功能
@@ -92,7 +92,7 @@ chmod +x build_macos.command
 
 ## 项目状态
 
-- 当前发布：[`v1.3.0`](https://github.com/ForceMind/PetDesktop/releases/tag/v1.3.0)
+- 当前发布：[`v1.3.1`](https://github.com/ForceMind/PetDesktop/releases/tag/v1.3.1)
 - Windows 与 macOS 由 GitHub Actions 自动构建。
 - 当前运行时只读取 `assets/frame_animation/base.png`、8 张待机帧、256 张动作帧和换装附件。
 - `assets/poses`、`assets/idle`、`assets/sprite_sheets` 与 `assets/rig/original_*` 是早期研究资料，
