@@ -22,6 +22,9 @@ jobs:
       - name: Run smoke test
         shell: pwsh
         run: ./smoke_test.ps1
+      - name: Verify gaze direction and animation continuity
+        shell: pwsh
+        run: ./tools/test_animation_continuity.ps1
       - name: Verify seven click regions
         shell: pwsh
         run: ./tools/test_click_regions.ps1
