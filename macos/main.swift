@@ -50,6 +50,10 @@ private final class PetView: NSView {
     private let rigArmRight: NSImage
     private let rigLegLeft: NSImage
     private let rigLegRight: NSImage
+    private let rigSocketArmLeft: NSImage
+    private let rigSocketArmRight: NSImage
+    private let rigSocketLegLeft: NSImage
+    private let rigSocketLegRight: NSImage
     private let outfitScarf: NSImage
     private let outfitCape: NSImage
     private let outfitGlasses: NSImage
@@ -134,10 +138,14 @@ private final class PetView: NSView {
         self.rigArmRight = rig[2]
         self.rigLegLeft = rig[3]
         self.rigLegRight = rig[4]
-        self.outfitScarf = rig[5]
-        self.outfitCape = rig[6]
-        self.outfitGlasses = rig[7]
-        self.outfitCap = rig[8]
+        self.rigSocketArmLeft = rig[5]
+        self.rigSocketArmRight = rig[6]
+        self.rigSocketLegLeft = rig[7]
+        self.rigSocketLegRight = rig[8]
+        self.outfitScarf = rig[9]
+        self.outfitCape = rig[10]
+        self.outfitGlasses = rig[11]
+        self.outfitCap = rig[12]
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
@@ -378,6 +386,20 @@ private final class PetView: NSView {
             drawRigAccessory(outfitCape, origin: origin, scale: scale,
                              x: 55, y: 560, width: 640)
         }
+        drawRigSocket(rigSocketLegLeft, origin: origin, scale: scale,
+                      pivot: NSPoint(x: 199, y: 1044), rotation: pose.leftLeg * 0.5,
+                      offsetY: pose.leftLegY * 0.5,
+                      fraction: jointSocketOpacity(pose.leftLeg, pose.leftLegY))
+        drawRigSocket(rigSocketLegRight, origin: origin, scale: scale,
+                      pivot: NSPoint(x: 433, y: 1044), rotation: pose.rightLeg * 0.5,
+                      offsetY: pose.rightLegY * 0.5,
+                      fraction: jointSocketOpacity(pose.rightLeg, pose.rightLegY))
+        drawRigSocket(rigSocketArmLeft, origin: origin, scale: scale,
+                      pivot: NSPoint(x: 136, y: 742), rotation: pose.leftArm * 0.5,
+                      offsetY: 0, fraction: jointSocketOpacity(pose.leftArm, 0))
+        drawRigSocket(rigSocketArmRight, origin: origin, scale: scale,
+                      pivot: NSPoint(x: 484, y: 748), rotation: pose.rightArm * 0.5,
+                      offsetY: 0, fraction: jointSocketOpacity(pose.rightArm, 0))
         drawRigPart(rigLegLeft, origin: origin, scale: scale,
                     target: NSPoint(x: 199, y: 1044 + pose.leftLegY),
                     pivot: NSPoint(x: 199, y: 1044), rotation: pose.leftLeg)
@@ -421,6 +443,28 @@ private final class PetView: NSView {
                           width: image.size.width * scale, height: image.size.height * scale)
         image.draw(in: rect, from: .zero, operation: .sourceOver,
                    fraction: 1, respectFlipped: true, hints: nil)
+        context.restoreGraphicsState()
+    }
+
+    private func jointSocketOpacity(_ rotation: CGFloat, _ offsetY: CGFloat) -> CGFloat {
+        min(1, max(0, abs(rotation) / 12 + abs(offsetY) / 16))
+    }
+
+    private func drawRigSocket(_ image: NSImage, origin: NSPoint, scale: CGFloat,
+                               pivot: NSPoint, rotation: CGFloat, offsetY: CGFloat,
+                               fraction: CGFloat) {
+        guard fraction > 0.001 else { return }
+        guard let context = NSGraphicsContext.current else { return }
+        context.saveGraphicsState()
+        let transform = NSAffineTransform()
+        transform.translateX(by: origin.x + pivot.x * scale,
+                             yBy: origin.y + (pivot.y + offsetY) * scale)
+        transform.rotate(byDegrees: rotation)
+        transform.concat()
+        image.draw(in: NSRect(x: -pivot.x * scale, y: -pivot.y * scale,
+                              width: image.size.width * scale, height: image.size.height * scale),
+                   from: .zero, operation: .sourceOver, fraction: fraction,
+                   respectFlipped: true, hints: nil)
         context.restoreGraphicsState()
     }
 
@@ -1049,6 +1093,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         let rigNames = [
             "original_core", "original_arm_left", "original_arm_right",
             "original_leg_left", "original_leg_right",
+            "original_socket_arm_left", "original_socket_arm_right",
+            "original_socket_leg_left", "original_socket_leg_right",
             "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap"
         ]
         var rig: [NSImage] = []

@@ -15,12 +15,19 @@ NAMES = [
     "original_core", "original_arm_left", "original_arm_right",
     "original_leg_left", "original_leg_right",
 ]
+SOCKET_NAMES = [
+    "original_socket_arm_left", "original_socket_arm_right",
+    "original_socket_leg_left", "original_socket_leg_right",
+]
 
 
 def main() -> None:
     source = Image.open(ROOT / "assets" / "coco.png").convert("RGBA").crop(CROP)
     layers = [Image.open(RIG / f"{name}.png").convert("RGBA") for name in NAMES]
+    sockets = [Image.open(RIG / f"{name}.png").convert("RGBA") for name in SOCKET_NAMES]
     assert all(layer.size == source.size for layer in layers), "Rig layers use mismatched canvases"
+    assert all(socket.size == source.size for socket in sockets), "Joint sockets use mismatched canvases"
+    assert all(socket.getchannel("A").getbbox() for socket in sockets), "A joint socket is empty"
 
     source_pixels = source.load()
     for name, layer in zip(NAMES, layers):
@@ -37,7 +44,7 @@ def main() -> None:
     ratio = changed / max(1, visible)
     assert ratio < 0.005, f"Neutral rig differs from original by {ratio:.3%}"
     print(f"Original identity test passed: {len(layers)} source-pixel layers, "
-          f"neutral difference {ratio:.3%}")
+          f"{len(sockets)} motion-only joint sockets, neutral difference {ratio:.3%}")
 
 
 if __name__ == "__main__":

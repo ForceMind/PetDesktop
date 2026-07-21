@@ -101,6 +101,8 @@ def main() -> None:
     rig_names = [
         "original_core", "original_arm_left", "original_arm_right",
         "original_leg_left", "original_leg_right",
+        "original_socket_arm_left", "original_socket_arm_right",
+        "original_socket_leg_left", "original_socket_leg_right",
         "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap", "app_icon",
     ]
     for name in rig_names:
@@ -125,7 +127,7 @@ def main() -> None:
 
     print("macOS static validation passed")
     print(f"Actions: {len(frames_a)} body-motion curves + 32 joint-motion curves")
-    print("Rig: original head/body core + 2 original arms + 2 original lower legs")
+    print("Rig: original core + 4 limbs + 4 motion-only fabric joint sockets")
     print("Outfits: default + scarf + cape + glasses + sailor cap")
     print(f"Archived source poses: {len(frames_a) + len(frames_b)}")
     print(f"Archived idle studies: {len(follow_frames) + len(life_frames)}")

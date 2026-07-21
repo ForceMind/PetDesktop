@@ -41,7 +41,8 @@ try {
         throw 'The original Coco aspect ratio is not preserved.'
     }
     foreach ($fieldName in @('rigCore', 'rigArmLeft', 'rigArmRight', 'rigLegLeft',
-                              'rigLegRight', 'outfitScarf', 'outfitCape',
+                              'rigLegRight', 'rigSocketArmLeft', 'rigSocketArmRight',
+                              'rigSocketLegLeft', 'rigSocketLegRight', 'outfitScarf', 'outfitCape',
                               'outfitGlasses', 'outfitCap')) {
         if ($null -eq $type.GetField($fieldName, $instanceFlags).GetValue($form)) {
             throw "Live rig resource was not loaded: $fieldName"

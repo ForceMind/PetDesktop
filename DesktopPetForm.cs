@@ -163,6 +163,10 @@ namespace CocoDesktopPet
         private Bitmap rigArmRight;
         private Bitmap rigLegLeft;
         private Bitmap rigLegRight;
+        private Bitmap rigSocketArmLeft;
+        private Bitmap rigSocketArmRight;
+        private Bitmap rigSocketLegLeft;
+        private Bitmap rigSocketLegRight;
         private Bitmap outfitScarf;
         private Bitmap outfitCape;
         private Bitmap outfitGlasses;
@@ -254,6 +258,10 @@ namespace CocoDesktopPet
             rigArmRight = LoadResourceBitmap("rig_original_arm_right.png");
             rigLegLeft = LoadResourceBitmap("rig_original_leg_left.png");
             rigLegRight = LoadResourceBitmap("rig_original_leg_right.png");
+            rigSocketArmLeft = LoadResourceBitmap("rig_original_socket_arm_left.png");
+            rigSocketArmRight = LoadResourceBitmap("rig_original_socket_arm_right.png");
+            rigSocketLegLeft = LoadResourceBitmap("rig_original_socket_leg_left.png");
+            rigSocketLegRight = LoadResourceBitmap("rig_original_socket_leg_right.png");
             outfitScarf = LoadResourceBitmap("rig_outfit_scarf.png");
             outfitCape = LoadResourceBitmap("rig_outfit_cape.png");
             outfitGlasses = LoadResourceBitmap("rig_outfit_glasses.png");
@@ -387,6 +395,10 @@ namespace CocoDesktopPet
             DisposeBitmap(ref rigArmRight);
             DisposeBitmap(ref rigLegLeft);
             DisposeBitmap(ref rigLegRight);
+            DisposeBitmap(ref rigSocketArmLeft);
+            DisposeBitmap(ref rigSocketArmRight);
+            DisposeBitmap(ref rigSocketLegLeft);
+            DisposeBitmap(ref rigSocketLegRight);
             DisposeBitmap(ref outfitScarf);
             DisposeBitmap(ref outfitCape);
             DisposeBitmap(ref outfitGlasses);
@@ -1484,6 +1496,22 @@ namespace CocoDesktopPet
                     55F, 560F, 640F);
             }
 
+            // Rounded fabric sockets sit behind the moving cut-outs and fade in
+            // only while their joint moves. This prevents the desktop from
+            // showing through as a white crescent at a shoulder or hip.
+            DrawRigSocket(graphics, rigSocketLegLeft, originX, originY, rigScale,
+                199F, 1044F, pose.LeftLeg * 0.5F, pose.LeftLegY * 0.5F,
+                JointSocketOpacity(pose.LeftLeg, pose.LeftLegY));
+            DrawRigSocket(graphics, rigSocketLegRight, originX, originY, rigScale,
+                433F, 1044F, pose.RightLeg * 0.5F, pose.RightLegY * 0.5F,
+                JointSocketOpacity(pose.RightLeg, pose.RightLegY));
+            DrawRigSocket(graphics, rigSocketArmLeft, originX, originY, rigScale,
+                136F, 742F, pose.LeftArm * 0.5F, pose.LeftArmY * 0.5F,
+                JointSocketOpacity(pose.LeftArm, pose.LeftArmY));
+            DrawRigSocket(graphics, rigSocketArmRight, originX, originY, rigScale,
+                484F, 748F, pose.RightArm * 0.5F, pose.RightArmY * 0.5F,
+                JointSocketOpacity(pose.RightArm, pose.RightArmY));
+
             DrawRigPart(graphics, rigLegLeft, originX, originY, rigScale,
                 199F, 1044F + pose.LeftLegY, 199F, 1044F, pose.LeftLeg);
             DrawRigPart(graphics, rigLegRight, originX, originY, rigScale,
@@ -1528,6 +1556,37 @@ namespace CocoDesktopPet
                 image.Width * rigScale, image.Height * rigScale);
             graphics.DrawImage(image, destination,
                 new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
+            graphics.Restore(state);
+        }
+
+        private static float JointSocketOpacity(float rotation, float offsetY)
+        {
+            return ClampFloat(Math.Abs(rotation) / 12F + Math.Abs(offsetY) / 16F, 0F, 1F);
+        }
+
+        private static void DrawRigSocket(Graphics graphics, Bitmap image,
+            float originX, float originY, float rigScale, float pivotX, float pivotY,
+            float rotation, float offsetY, float opacity)
+        {
+            if (image == null || opacity <= 0.001F)
+            {
+                return;
+            }
+            GraphicsState state = graphics.Save();
+            graphics.TranslateTransform(originX + pivotX * rigScale,
+                originY + (pivotY + offsetY) * rigScale);
+            graphics.RotateTransform(rotation);
+            Rectangle destination = Rectangle.Round(new RectangleF(-pivotX * rigScale,
+                -pivotY * rigScale, image.Width * rigScale, image.Height * rigScale));
+            ColorMatrix matrix = new ColorMatrix();
+            matrix.Matrix33 = opacity;
+            using (ImageAttributes attributes = new ImageAttributes())
+            {
+                attributes.SetColorMatrix(matrix, ColorMatrixFlag.Default,
+                    ColorAdjustType.Bitmap);
+                graphics.DrawImage(image, destination, 0, 0,
+                    image.Width, image.Height, GraphicsUnit.Pixel, attributes);
+            }
             graphics.Restore(state);
         }
 

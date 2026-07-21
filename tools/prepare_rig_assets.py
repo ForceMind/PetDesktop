@@ -74,6 +74,16 @@ JOINT_CAP_RADII = {
     "leg_right": 34,
 }
 
+# A rotating cut-out inevitably sweeps through pixels that were transparent in
+# the neutral source.  These small fabric sockets are faded in behind a moving
+# limb so the desktop can never show through the shoulder/hip joint.
+JOINT_SOCKET_RADII = {
+    "arm_left": (150, 34),
+    "arm_right": (150, 34),
+    "leg_left": (90, 28),
+    "leg_right": (90, 28),
+}
+
 PART_SEEDS = {
     "arm_left": (380, 930),
     "arm_right": (992, 620),
@@ -171,6 +181,88 @@ def layer_from_mask(source: Image.Image, mask: Image.Image) -> Image.Image:
     return clean
 
 
+def build_joint_socket(part: Image.Image, pivot: tuple[int, int],
+                       radii: tuple[int, int], seed: tuple[int, int]) -> Image.Image:
+    """Fill a rounded joint socket with nearest real burlap pixels.
+
+    The socket is not visible in neutral pose.  Runtime fades it in only while
+    its limb moves, behind both the limb and the intact torso core.
+    """
+    socket_length, half_width = radii
+    direction_x = seed[0] - pivot[0]
+    direction_y = seed[1] - pivot[1]
+    direction_length = (direction_x * direction_x + direction_y * direction_y) ** 0.5
+    donor_x = pivot[0] + direction_x / direction_length * 54
+    donor_y = pivot[1] + direction_y / direction_length * 54
+    margin = socket_length + half_width + 18
+    left = max(0, pivot[0] - margin)
+    top = max(0, pivot[1] - margin)
+    right = min(part.width, pivot[0] + margin + 1)
+    bottom = min(part.height, pivot[1] + margin + 1)
+    width, height = right - left, bottom - top
+    pixels = part.load()
+    nearest: list[int] = [-1] * (width * height)
+    queue: deque[tuple[int, int]] = deque()
+    for y in range(height):
+        for x in range(width):
+            source_x, source_y = left + x, top + y
+            if pixels[source_x, source_y][3] > 32:
+                nearest[y * width + x] = y * width + x
+                queue.append((x, y))
+    if not queue:
+        raise RuntimeError(f"No source fabric around joint pivot {pivot}")
+    while queue:
+        x, y = queue.popleft()
+        owner = nearest[y * width + x]
+        for next_x, next_y in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if not (0 <= next_x < width and 0 <= next_y < height):
+                continue
+            index = next_y * width + next_x
+            if nearest[index] >= 0:
+                continue
+            nearest[index] = owner
+            queue.append((next_x, next_y))
+
+    # Build a narrow capsule along the neutral upper limb. Runtime rotates this
+    # capsule by half the limb angle, placing it between torso and moving limb
+    # without exposing a large circular patch behind the character.
+    unit_x = direction_x / direction_length
+    unit_y = direction_y / direction_length
+    start = (round(pivot[0] - unit_x * 20), round(pivot[1] - unit_y * 20))
+    end = (round(pivot[0] + unit_x * socket_length),
+           round(pivot[1] + unit_y * socket_length))
+    mask = Image.new("L", part.size, 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.line((start, end), fill=255, width=half_width * 2)
+    for center_x, center_y in (start, end):
+        mask_draw.ellipse((center_x - half_width, center_y - half_width,
+                           center_x + half_width, center_y + half_width), fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(1.2))
+    mask_pixels = mask.load()
+    socket = Image.new("RGBA", part.size, (0, 0, 0, 0))
+    socket_pixels = socket.load()
+    mask_box = mask.getbbox()
+    if mask_box:
+        for y in range(mask_box[1], mask_box[3]):
+            for x in range(mask_box[0], mask_box[2]):
+                alpha = mask_pixels[x, y]
+                if not alpha:
+                    continue
+                sample_x = round(donor_x + (x - pivot[0]) * 0.58)
+                sample_y = round(donor_y + (y - pivot[1]) * 0.58)
+                sample_x = min(part.width - 1, max(0, sample_x))
+                sample_y = min(part.height - 1, max(0, sample_y))
+                red, green, blue, sample_alpha = pixels[sample_x, sample_y]
+                if sample_alpha <= 32:
+                    local_x = min(width - 1, max(0, sample_x - left))
+                    local_y = min(height - 1, max(0, sample_y - top))
+                    owner = nearest[local_y * width + local_x]
+                    owner_x, owner_y = owner % width, owner // width
+                    red, green, blue, _ = pixels[left + owner_x, top + owner_y]
+                socket_pixels[x, y] = (red, green, blue, alpha)
+    return socket
+
+
 def build_icon(source: Image.Image) -> Image.Image:
     # Crop the complete original face and feather crown.  The limb-free core is
     # passed here so the source's raised hand cannot intrude into the icon.
@@ -264,6 +356,11 @@ def main() -> None:
         cut_mask = ImageChops.subtract(part_mask, joint_overlap)
         core_alpha = ImageChops.subtract(core_alpha, cut_mask)
     core.putalpha(core_alpha)
+    sockets_full = {
+        name: build_joint_socket(image, SOURCE_PIVOTS[name], JOINT_SOCKET_RADII[name],
+                                 PART_SEEDS[name])
+        for name, image in parts_full.items()
+    }
 
     # Convert pivots and every layer to the same fixed crop.
     crop_left, crop_top, _, _ = CROP
@@ -276,6 +373,8 @@ def main() -> None:
     core_crop.save(RIG_DIR / "original_core.png", optimize=True)
     for name, image in parts.items():
         image.save(RIG_DIR / f"original_{name}.png", optimize=True)
+    for name, socket in sockets_full.items():
+        socket.crop(CROP).save(RIG_DIR / f"original_socket_{name}.png", optimize=True)
 
     neutral = compose(core_crop, parts)
     neutral.save(RIG_DIR / "original_neutral.png", optimize=True)

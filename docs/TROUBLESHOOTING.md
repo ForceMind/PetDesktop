@@ -54,6 +54,7 @@ xcrun --find swiftc
 2. 运行 `python tools/test_original_rig.py`。
 3. 用 `tools/prepare_rig_assets.py` 重新生成手脚遮罩和关节覆盖区。
 4. 检查关节角度限制；超过原图重叠区会暴露手臂或腰部的直切边缘。
+5. 确认 `original_socket_*` 已被构建脚本打包，并在四肢之前、身体核心之后方的正确层级绘制。
 
 深色背景最容易暴露透明边缘问题，建议视觉验收时同时使用浅色和深色桌面。
 
