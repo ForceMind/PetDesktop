@@ -241,11 +241,19 @@ namespace CocoDesktopPet
                      ControlStyles.OptimizedDoubleBuffer, true);
 
             random = new Random();
-            petImage = LoadResourceBitmap("frame_base.png");
-            idleFrameImages = LoadImageSequence("frame_idle", 8);
-            actionFrameImages = LoadFrameActions();
+            // Every rendered frame now comes from this single, stable original-pixel
+            // rig.  Swapping independently generated pose images caused Coco's
+            // outline, lighting and registration to jump between frames.
+            petImage = LoadPetImage();
+            idleFrameImages = null;
+            actionFrameImages = null;
             idleFollowImages = null;
             idleLifeImages = null;
+            rigCore = LoadResourceBitmap("rig_original_core.png");
+            rigArmLeft = LoadResourceBitmap("rig_original_arm_left.png");
+            rigArmRight = LoadResourceBitmap("rig_original_arm_right.png");
+            rigLegLeft = LoadResourceBitmap("rig_original_leg_left.png");
+            rigLegRight = LoadResourceBitmap("rig_original_leg_right.png");
             outfitScarf = LoadResourceBitmap("rig_outfit_scarf.png");
             outfitCape = LoadResourceBitmap("rig_outfit_cape.png");
             outfitGlasses = LoadResourceBitmap("rig_outfit_glasses.png");
@@ -259,7 +267,7 @@ namespace CocoDesktopPet
             petScreenY = work.Bottom - petHeight - 24;
 
             animationTimer = new Timer();
-            // The authored keyframes are interpolated at a stable 30 FPS.
+            // Joint and body transforms are sampled at a stable 30 FPS.
             animationTimer.Interval = 33;
             animationTimer.Tick += AnimationTimerTick;
 
@@ -418,10 +426,30 @@ namespace CocoDesktopPet
 
         private void PetShown(object sender, EventArgs e)
         {
+            string diagnosticOutfit = Environment.GetEnvironmentVariable("COCO_PET_DIAGNOSTIC_OUTFIT");
+            OutfitKind parsedOutfit;
+            if (!string.IsNullOrEmpty(diagnosticOutfit) &&
+                Enum.TryParse(diagnosticOutfit, true, out parsedOutfit))
+            {
+                outfit = parsedOutfit;
+                UpdateOutfitMenuChecks();
+            }
+
             ShowBubble(LocalizedMessage("嗨，我是 Coco！拖我去逛逛吧～",
                 "Hi, I'm Coco! Drag me around!"), 3600);
             animationTimer.Start();
-            RenderFrame();
+            string diagnosticAction = Environment.GetEnvironmentVariable("COCO_PET_DIAGNOSTIC_ACTION");
+            InteractionKind parsedAction;
+            if (!string.IsNullOrEmpty(diagnosticAction) &&
+                Enum.TryParse(diagnosticAction, true, out parsedAction) &&
+                parsedAction != InteractionKind.None)
+            {
+                TriggerInteraction(parsedAction, ClickRegion.Body);
+            }
+            else
+            {
+                RenderFrame();
+            }
         }
 
         private ToolStripMenuItem CreateSizeMenuItem(string text, double value)
@@ -783,9 +811,8 @@ namespace CocoDesktopPet
         private void UpdatePetDimensions()
         {
             petHeight = Math.Max(120, (int)Math.Round(BasePetHeight * scaleFactor));
-            // Production animation frames use a square transparent canvas.
-            // Keeping the destination square prevents pose-dependent stretching.
-            petWidth = petHeight;
+            // Preserve the exact aspect ratio of the cropped original Coco artwork.
+            petWidth = Math.Max(74, (int)Math.Round(petHeight * (745.0 / 1205.0)));
         }
 
         private void UpdateSizeMenuChecks()
@@ -1038,8 +1065,8 @@ namespace CocoDesktopPet
                 (now - interactionStarted).TotalMilliseconds >= InteractionDuration(interaction))
             {
                 interaction = InteractionKind.None;
-                // The action's final bitmap and the idle timeline's first bitmap
-                // are the same petImage object. Restart from that exact frame.
+                // Every joint curve ends at zero, so resetting the idle clock
+                // continues from the exact same neutral rig without a hard cut.
                 idleStarted = now;
                 Text = "Coco 桌宠 - Idle";
                 nextIdleGestureAt = now.AddMilliseconds(700 + random.Next(900));
@@ -1173,19 +1200,33 @@ namespace CocoDesktopPet
                 graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
+                float offsetX;
+                float offsetY;
+                float scaleX;
+                float scaleY;
+                float rotation;
+                CalculateAnimation(out offsetX, out offsetY, out scaleX, out scaleY, out rotation);
+
+                // Never stretch Coco differently on X and Y.  A uniform transform
+                // keeps every interpolated frame registered to the same silhouette.
+                float uniformScale = (float)Math.Sqrt(Math.Max(0.01F, Math.Abs(scaleX * scaleY)));
+                uniformScale = ClampFloat(uniformScale, 0.76F, 1.14F);
+                bool centerPivot = interaction == InteractionKind.Spin ||
+                    interaction == InteractionKind.ReverseSpin ||
+                    interaction == InteractionKind.Backflip ||
+                    interaction == InteractionKind.Frontflip;
+
                 GraphicsState state = graphics.Save();
-                float centerX = characterX + petWidth / 2F;
-                float centerY = characterY + petHeight / 2F;
-                graphics.TranslateTransform(centerX, centerY);
-                // Idle Coco subtly leans toward the pointer. Action artwork is
-                // left untouched so authored flips and poses are never doubled.
-                if (interaction == InteractionKind.None)
-                {
-                    graphics.RotateTransform((float)(gazeX * 1.8));
-                }
+                float pivotX = characterX + petWidth / 2F + offsetX;
+                float pivotY = centerPivot
+                    ? characterY + petHeight / 2F + offsetY
+                    : characterY + petHeight + offsetY;
+                graphics.TranslateTransform(pivotX, pivotY);
+                graphics.RotateTransform(rotation);
+                graphics.ScaleTransform(uniformScale, uniformScale);
 
                 lastCharacterBounds = new Rectangle(characterX, characterY, petWidth, petHeight);
-                DrawFrameTimeline(graphics, petWidth);
+                DrawRigCharacter(graphics, centerPivot, CalculateRigPose(), GetHeadTrackingWeight());
                 graphics.Restore(state);
 
                 if (!string.IsNullOrEmpty(bubbleText))
@@ -1202,6 +1243,11 @@ namespace CocoDesktopPet
             {
                 frame.Save(diagnosticPath, ImageFormat.Png);
                 diagnosticFrameSaved = true;
+                if (!string.IsNullOrEmpty(
+                    Environment.GetEnvironmentVariable("COCO_PET_DIAGNOSTIC_EXIT")))
+                {
+                    BeginInvoke(new Action(Close));
+                }
             }
 
             Rectangle nextBounds = new Rectangle(frameX, frameY, frameWidth, frameHeight);
@@ -1501,8 +1547,17 @@ namespace CocoDesktopPet
             RigPose pose = new RigPose();
             if (interaction == InteractionKind.None)
             {
+                double idleSeconds = (DateTime.UtcNow - idleStarted).TotalSeconds;
+                double breathe = Math.Sin(idleSeconds * Math.PI * 2.0 / 2.8);
+                double step = Math.Sin(idleSeconds * Math.PI * 2.0 / 4.6);
+                pose.LeftArm = (float)(7.0 * step + 2.0 * breathe);
+                pose.RightArm = (float)(-7.0 * step - 2.0 * breathe);
+                pose.LeftLeg = (float)(3.0 * step);
+                pose.RightLeg = (float)(-3.0 * step);
+                pose.Head = (float)(3.0 * Math.Sin(idleSeconds * Math.PI * 2.0 / 5.8));
                 if (!idleGestureActive)
                 {
+                    LimitRigPose(ref pose);
                     return pose;
                 }
                 double idleT = Math.Max(0.0, Math.Min(1.0,
@@ -1643,16 +1698,16 @@ namespace CocoDesktopPet
 
         private static void LimitRigPose(ref RigPose pose)
         {
-            // The original-pixel limbs need small rotations; large paper-doll
-            // angles expose empty source areas and visually detach the joints.
-            pose.LeftArm = ClampFloat(pose.LeftArm * 0.10F, -14F, 14F);
-            pose.RightArm = ClampFloat(pose.RightArm * 0.10F, -14F, 14F);
-            pose.LeftLeg = ClampFloat(pose.LeftLeg * 0.10F, -6F, 6F);
-            pose.RightLeg = ClampFloat(pose.RightLeg * 0.10F, -6F, 6F);
-            pose.LeftArmY = ClampFloat(pose.LeftArmY * 0.12F, -5F, 5F);
-            pose.RightArmY = ClampFloat(pose.RightArmY * 0.12F, -5F, 5F);
-            pose.LeftLegY = ClampFloat(pose.LeftLegY * 0.12F, -10F, 7F);
-            pose.RightLegY = ClampFloat(pose.RightLegY * 0.12F, -10F, 7F);
+            // These limits are wide enough to make hands and feet visibly move,
+            // while staying inside the clean overlap area of the source cut-outs.
+            pose.LeftArm = ClampFloat(pose.LeftArm * 0.30F, -30F, 30F);
+            pose.RightArm = ClampFloat(pose.RightArm * 0.30F, -30F, 30F);
+            pose.LeftLeg = ClampFloat(pose.LeftLeg * 0.30F, -14F, 14F);
+            pose.RightLeg = ClampFloat(pose.RightLeg * 0.30F, -14F, 14F);
+            pose.LeftArmY = ClampFloat(pose.LeftArmY * 0.28F, -10F, 10F);
+            pose.RightArmY = ClampFloat(pose.RightArmY * 0.28F, -10F, 10F);
+            pose.LeftLegY = ClampFloat(pose.LeftLegY * 0.40F, -28F, 12F);
+            pose.RightLegY = ClampFloat(pose.RightLegY * 0.40F, -28F, 12F);
             pose.Head = ClampFloat(pose.Head * 0.18F, -7F, 7F);
             pose.HeadX = ClampFloat(pose.HeadX * 0.12F, -5F, 5F);
             pose.HeadY = ClampFloat(pose.HeadY * 0.12F, -5F, 5F);

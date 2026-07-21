@@ -1,64 +1,55 @@
-# 素材与逐帧资源
+# 素材与骨骼资源
 
-## 角色参考
+## 角色母版
 
-`assets/coco.png` 是 Coco 的初始角色参考图。所有新帧必须保留其麻布质感、纽扣眼睛、蓝色羽冠、
-牙齿、腹部补丁、颜色与整体比例。逐帧姿势允许手脚、身体、表情和朝向真正变化。
+`assets/coco.png` 是 Coco 的唯一身份母版。麻布纹理、纽扣眼睛、蓝色羽冠、牙齿、腹部补丁、颜色和
+比例都必须来自这张图，不能用每个动作单独重绘的图片替换。
 
 ## 生产资源
 
-| 路径 | 数量 | 用途 |
-| --- | ---: | --- |
-| `assets/frame_animation/base.png` | 1 | 待机首帧，以及所有动作共同的第一/最后帧 |
-| `assets/frame_animation/idle/idle_*.png` | 8 | 呼吸、眨眼、手脚和表情变化的动态待机 |
-| `assets/frame_animation/actions/action_NN_FF.png` | 256 | 32 个动作，每个动作 8 张按时间排序的画面 |
-| `assets/frame_animation/manifest.json` | 1 | 画布、播放规则、动作名称和资源清单 |
-| `assets/frame_animation/frame_animation_preview.png` | 1 | 待机与 32 个动作的视觉总览 |
-| `assets/rig/outfit_*.png` | 4 | 围巾、披风、眼镜和帽子附件 |
-| `assets/coco.ico` | 1 | Windows 程序图标 |
-| `assets/rig/app_icon.png` | 1 | macOS 图标源 |
+| 路径 | 用途 |
+| --- | --- |
+| `assets/rig/original_core.png` | 头部和身体核心，覆盖关节内侧接缝 |
+| `assets/rig/original_arm_left.png` / `original_arm_right.png` | 两个可旋转手臂层 |
+| `assets/rig/original_leg_left.png` / `original_leg_right.png` | 两个可旋转、抬起的脚部层 |
+| `assets/rig/outfit_*.png` | 红围巾、蓝披风、圆眼镜和海军帽 |
+| `assets/coco.ico` | Windows 程序图标 |
+| `assets/rig/app_icon.png` | macOS 图标源 |
 
-所有生产角色帧必须为 `512 × 512 RGBA`。角色在透明方形画布中移动、旋转或跳起，运行时只等比缩放
-整个画布，因此不同姿势不会改变窗口中的宽高比例。
+五个角色层都使用 `745 × 1205 RGBA` 同画布，关节坐标固定为：
 
-## 源表
+| 关节 | 坐标 |
+| --- | --- |
+| 左肩 | `(136, 742)` |
+| 右肩 | `(484, 748)` |
+| 左腿 | `(199, 1044)` |
+| 右腿 | `(433, 1044)` |
 
-`assets/frame_animation/source` 保存可复现素材：
+同画布设计保证任何时刻都只改变变换矩阵，不需要重新定位或缩放某个部件。身体核心最后覆盖手脚的
+内侧重叠区，避免肩部和腰部出现透明缝隙。
 
-- `idle_v2_green.png`：4 × 2 待机源表。
-- `actions_XX_YY_4f_green.png`：每组四个动作、每个动作四张主关键帧。
-- `inbetweens_XX_YY_green.png`：对应四个动作的四张中间帧。
+## 重新生成骨骼层
 
-动作最终交错为：
-
-```text
-中间帧1, 主帧1, 中间帧2, 主帧2, 中间帧3, 主帧3, 中间帧4, 主帧4
-```
-
-这些源表使用纯绿色背景，不能被应用直接加载。
-
-## 重新生成透明帧
-
-需要 Python、Pillow、NumPy、SciPy，以及 imagegen 技能附带的抠图脚本：
+需要 Python、Pillow 和 NumPy：
 
 ```powershell
-python .\tools\prepare_frame_animation.py
-python .\tools\test_frame_assets.py
+python .\tools\prepare_rig_assets.py
+python .\tools\test_original_rig.py
+python .\tools\render_rig_motion_preview.py
 ```
 
-处理脚本会切分单元格、柔化绿幕边缘、去除绿色溢色、只保留与角色相连的最大主体、统一为
-512 × 512，并重新生成 `manifest.json` 和预览图。抖动线、星星等未连接小元素会被清除，
-以免透明桌面窗口出现漂浮碎片。
+依次检查 `assets/rig/original_rig_preview.png` 和 `dist/coherent-rig-preview.png`。不要仅看中立姿势；
+必须检查手臂和脚部在允许的最大角度下是否仍由身体覆盖接缝。
 
-## 素材验收
+## 验收规则
 
-- 每个动作必须有 8 个互不重复的文件哈希。
-- 32 条完整动作时间线必须互不重复。
-- 共同首尾帧必须是同一个 `base.png` 路径，而不是外观相近的再生成图片。
-- 每张图只能有一个完整 Coco，不得出现多余手脚、裁断身体或绿色边缘。
-- 必须查看 `frame_animation_preview.png`，并至少实机检查正反旋转、前后翻和大幅抬手动作。
+- 中立合成与原图的像素差异必须低于测试阈值。
+- 每个骨骼层的画布、比例和坐标必须一致，不得单独拉伸。
+- 肩部和腰部不得出现矩形残片、三角碎片或突然长出的身体纹理。
+- 换装必须在骨骼绘制函数内合成，并随整体和头部变换移动。
+- `frame_animation` 中的独立姿势图不得重新接入生产渲染器。
 
-## 历史素材
+## 历史研究资源
 
-`assets/poses`、`assets/idle`、`assets/sprite_sheets` 和 `assets/rig/original_*` 是早期整帧或关节方案的
-研究资料，不参与当前角色本体渲染。不要把它们重新接入运行时。
+`assets/frame_animation`、`assets/poses`、`assets/idle` 和 `assets/sprite_sheets` 保存早期实验及回归依据。
+这些图片的角色轮廓、光照和注册点不完全一致，连续播放会闪烁，因此不参与发布包构建。

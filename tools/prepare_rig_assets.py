@@ -30,21 +30,22 @@ CROP = (306, 4, 1051, 1209)  # width 745, height 1205
 # overlaps each joint and no transparent crack can appear while it rotates.
 PART_POLYGONS = {
     "arm_left": [
-        (406, 718), (463, 711), (474, 763), (449, 852), (432, 955),
+        (428, 742), (454, 742), (469, 775), (449, 852), (432, 955),
         (421, 1011), (359, 1014), (325, 976), (326, 906), (354, 810),
+        (402, 760),
     ],
     "arm_right": [
-        (769, 716), (810, 697), (846, 671), (881, 620), (927, 582),
+        (786, 735), (810, 709), (846, 671), (881, 620), (927, 582),
         (976, 560), (1019, 579), (1041, 608), (1021, 668), (956, 701),
-        (902, 716), (854, 771), (801, 815), (771, 794),
+        (902, 716), (854, 771), (801, 815), (786, 782),
     ],
     "leg_left": [
-        (397, 1018), (612, 1018), (628, 1050), (614, 1124), (584, 1198),
-        (433, 1202), (399, 1142),
+        (458, 1040), (556, 1040), (611, 1060), (614, 1124), (584, 1198),
+        (433, 1202), (399, 1142), (403, 1062),
     ],
     "leg_right": [
-        (630, 1018), (849, 1018), (861, 1125), (826, 1201), (668, 1201),
-        (630, 1127),
+        (690, 1040), (786, 1040), (844, 1062), (861, 1125), (826, 1201),
+        (668, 1201), (630, 1127), (636, 1060),
     ],
 }
 
@@ -52,10 +53,10 @@ PART_POLYGONS = {
 # removed from the core completely, preventing translucent outline pixels from
 # being drawn twice (the cause of the visible loop/flicker in the old build).
 JOINT_OVERLAP_POLYGONS = {
-    "arm_left": [(407, 730), (452, 720), (452, 775), (408, 806), (397, 763)],
-    "arm_right": [(764, 724), (811, 710), (817, 766), (795, 804), (768, 789)],
-    "leg_left": [(412, 1032), (605, 1032), (605, 1060), (414, 1066)],
-    "leg_right": [(638, 1032), (838, 1032), (838, 1066), (640, 1060)],
+    "arm_left": [(416, 730), (462, 728), (467, 782), (408, 818), (392, 765)],
+    "arm_right": [(772, 716), (821, 703), (830, 774), (795, 818), (764, 790)],
+    "leg_left": [(397, 1022), (616, 1022), (616, 1080), (398, 1080)],
+    "leg_right": [(628, 1022), (850, 1022), (850, 1080), (630, 1080)],
 }
 
 # Rotation pivots, converted to the common cropped canvas below.
@@ -64,6 +65,13 @@ SOURCE_PIVOTS = {
     "arm_right": (790, 752),
     "leg_left": (505, 1048),
     "leg_right": (739, 1048),
+}
+
+JOINT_CAP_RADII = {
+    "arm_left": 42,
+    "arm_right": 42,
+    "leg_left": 34,
+    "leg_right": 34,
 }
 
 PART_SEEDS = {
@@ -80,8 +88,15 @@ def polygon_mask(size: tuple[int, int], points: list[tuple[int, int]]) -> Image.
     return mask
 
 
+def joint_cap_mask(size: tuple[int, int], pivot: tuple[int, int], radius: int) -> Image.Image:
+    mask = Image.new("L", size, 0)
+    ImageDraw.Draw(mask).ellipse((pivot[0] - radius, pivot[1] - radius,
+                                  pivot[0] + radius, pivot[1] + radius), fill=255)
+    return mask
+
+
 def connected_part_mask(source: Image.Image, polygon: Image.Image,
-                        seed: tuple[int, int]) -> Image.Image:
+                        seed: tuple[int, int], pivot: tuple[int, int]) -> Image.Image:
     """Discard tassels and cords that merely cross a limb's polygon."""
     alpha = source.getchannel("A")
     alpha_pixels = alpha.load()
@@ -114,7 +129,36 @@ def connected_part_mask(source: Image.Image, polygon: Image.Image,
     # are not part of the limb, then restore the antialiased outer fringe.
     connected = connected.filter(ImageFilter.MinFilter(7)).filter(ImageFilter.MaxFilter(7))
     connected = connected.filter(ImageFilter.MaxFilter(3))
-    return ImageChops.multiply(connected, polygon)
+    connected = ImageChops.multiply(connected, polygon)
+
+    # A limb may contain original pixels on the torso side of its pivot. Those
+    # pixels are invisible in neutral pose but swing out as triangular scraps
+    # after rotation. Keep only the distal half-plane (toward the hand/foot);
+    # the intact core supplies the proximal shoulder/hip overlap.
+    direction_x = seed[0] - pivot[0]
+    direction_y = seed[1] - pivot[1]
+    length = (direction_x * direction_x + direction_y * direction_y) ** 0.5
+    direction_x /= length
+    direction_y /= length
+    pixels = connected.load()
+    box = connected.getbbox()
+    if box:
+        for y in range(box[1], box[3]):
+            for x in range(box[0], box[2]):
+                if ((x - pivot[0]) * direction_x +
+                        (y - pivot[1]) * direction_y) < -5:
+                    pixels[x, y] = 0
+    cap = joint_cap_mask(source.size, pivot, 42 if abs(direction_x) > 0.2 else 34)
+    cap = ImageChops.multiply(cap, source.getchannel("A").point(lambda value: 255 if value > 8 else 0))
+    cap_pixels = cap.load()
+    cap_box = cap.getbbox()
+    if cap_box:
+        for y in range(cap_box[1], cap_box[3]):
+            for x in range(cap_box[0], cap_box[2]):
+                if ((x - pivot[0]) * direction_x +
+                        (y - pivot[1]) * direction_y) < -5:
+                    cap_pixels[x, y] = 0
+    return ImageChops.lighter(connected, cap)
 
 
 def layer_from_mask(source: Image.Image, mask: Image.Image) -> Image.Image:
@@ -211,9 +255,12 @@ def main() -> None:
     core_alpha = source.getchannel("A").copy()
     for name, points in PART_POLYGONS.items():
         part_region = polygon_mask(source.size, points)
-        part_mask = connected_part_mask(source, part_region, PART_SEEDS[name])
+        part_mask = connected_part_mask(source, part_region, PART_SEEDS[name],
+                                        SOURCE_PIVOTS[name])
         parts_full[name] = layer_from_mask(source, part_mask)
-        joint_overlap = polygon_mask(source.size, JOINT_OVERLAP_POLYGONS[name])
+        joint_overlap = ImageChops.lighter(
+            polygon_mask(source.size, JOINT_OVERLAP_POLYGONS[name]),
+            joint_cap_mask(source.size, SOURCE_PIVOTS[name], JOINT_CAP_RADII[name]))
         cut_mask = ImageChops.subtract(part_mask, joint_overlap)
         core_alpha = ImageChops.subtract(core_alpha, cut_mask)
     core.putalpha(core_alpha)

@@ -6,9 +6,6 @@ $ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $distDir = Join-Path $projectDir 'dist'
 $assetPath = Join-Path $projectDir 'assets\coco.png'
-$frameDir = Join-Path $projectDir 'assets\frame_animation'
-$frameIdleDir = Join-Path $frameDir 'idle'
-$frameActionDir = Join-Path $frameDir 'actions'
 $rigDir = Join-Path $projectDir 'assets\rig'
 $iconPath = Join-Path $projectDir 'assets\coco.ico'
 $exeName = "Coco$([char]0x684c)$([char]0x5ba0).exe"
@@ -16,16 +13,6 @@ $outputPath = Join-Path $distDir $exeName
 
 if (-not (Test-Path -LiteralPath $assetPath)) {
     throw "Missing character asset: $assetPath"
-}
-
-$baseFramePath = Join-Path $frameDir 'base.png'
-$idleFrameFiles = @(Get-ChildItem -LiteralPath $frameIdleDir -Filter 'idle_*.png' -File |
-    Where-Object { $_.Name -match '^idle_[0-9]{2}\.png$' } | Sort-Object Name)
-$actionFrameFiles = @(Get-ChildItem -LiteralPath $frameActionDir -Filter 'action_*.png' -File |
-    Where-Object { $_.Name -match '^action_[0-9]{2}_[0-9]{2}\.png$' } | Sort-Object Name)
-if (-not (Test-Path -LiteralPath $baseFramePath) -or $idleFrameFiles.Count -ne 8 -or
-    $actionFrameFiles.Count -ne 256) {
-    throw "Frame animation assets are incomplete: expected base + 8 idle + 256 action frames."
 }
 
 if ($Clean -and (Test-Path -LiteralPath $distDir)) {
@@ -84,8 +71,17 @@ $sourceFiles = @(
     (Join-Path $projectDir 'AssemblyInfo.cs')
 )
 
-$rigResourceNames = @('outfit_scarf.png', 'outfit_cape.png',
-    'outfit_glasses.png', 'outfit_cap.png')
+$rigResourceNames = @(
+    'original_core.png',
+    'original_arm_left.png',
+    'original_arm_right.png',
+    'original_leg_left.png',
+    'original_leg_right.png',
+    'outfit_scarf.png',
+    'outfit_cape.png',
+    'outfit_glasses.png',
+    'outfit_cap.png'
+)
 $rigResourceArgs = @()
 foreach ($rigName in $rigResourceNames) {
     $rigPath = Join-Path $rigDir $rigName
@@ -94,33 +90,6 @@ foreach ($rigName in $rigResourceNames) {
     }
     $rigResourceArgs += "/resource:$rigPath,CocoDesktopPet.rig_$rigName"
 }
-
-$frameArchivePath = Join-Path $distDir 'frame_animation.zip'
-Add-Type -AssemblyName System.IO.Compression
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$archiveStream = [System.IO.File]::Open($frameArchivePath, [System.IO.FileMode]::Create)
-$archive = New-Object System.IO.Compression.ZipArchive(
-    $archiveStream, [System.IO.Compression.ZipArchiveMode]::Create, $false)
-try {
-    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-        $archive, $baseFramePath, 'frame_base.png',
-        [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
-    foreach ($idleFrame in $idleFrameFiles) {
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-            $archive, $idleFrame.FullName, "frame_$($idleFrame.Name)",
-            [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
-    }
-    foreach ($actionFrame in $actionFrameFiles) {
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-            $archive, $actionFrame.FullName, "frame_$($actionFrame.Name)",
-            [System.IO.Compression.CompressionLevel]::NoCompression) | Out-Null
-    }
-}
-finally {
-    $archive.Dispose()
-    $archiveStream.Dispose()
-}
-$frameResourceArgs = @("/resource:$frameArchivePath,CocoDesktopPet.frame_animation.zip")
 
 $compilerArgs = @(
     '/nologo',
@@ -136,11 +105,10 @@ $compilerArgs = @(
     '/reference:System.Drawing.dll',
     '/reference:System.IO.Compression.dll',
     '/reference:System.Windows.Forms.dll'
-) + $rigResourceArgs + $frameResourceArgs + $sourceFiles
+) + $rigResourceArgs + $sourceFiles
 
 & $compiler $compilerArgs
 $compileExitCode = $LASTEXITCODE
-Remove-Item -LiteralPath $frameArchivePath -Force
 if ($compileExitCode -ne 0) {
     throw "Compilation failed with exit code: $compileExitCode"
 }

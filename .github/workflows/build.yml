@@ -25,10 +25,12 @@ jobs:
       - name: Verify gaze direction and animation continuity
         shell: pwsh
         run: ./tools/test_animation_continuity.ps1
-      - name: Install image verification dependency
-        run: python -m pip install Pillow
-      - name: Verify production frame assets
-        run: python ./tools/test_frame_assets.py
+      - name: Install image verification dependencies
+        run: python -m pip install Pillow numpy
+      - name: Verify original-pixel rig assets
+        run: python ./tools/test_original_rig.py
+      - name: Validate macOS continuous-rig source
+        run: python ./tools/validate_macos_source.py
       - name: Verify seven click regions
         shell: pwsh
         run: ./tools/test_click_regions.ps1

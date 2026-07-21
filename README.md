@@ -3,11 +3,11 @@
 [![Build Coco Desktop Pet](https://github.com/ForceMind/PetDesktop/actions/workflows/build.yml/badge.svg)](https://github.com/ForceMind/PetDesktop/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/ForceMind/PetDesktop)](https://github.com/ForceMind/PetDesktop/releases/latest)
 
-Coco 是一个面向 Windows 和 macOS 的透明桌面宠物。角色以
-[`assets/coco.png`](assets/coco.png) 为外观和身份参考，并使用真正的逐帧动画：待机和 32 种动作
-都有独立画面，不再依赖同一张图片的位移、拉伸或关节摆动来伪装成不同动作。
+Coco 是一个面向 Windows 和 macOS 的透明桌面宠物。运行时始终使用
+[`assets/coco.png`](assets/coco.png) 提取出的同一套原像素分层骨骼：每个 30 FPS 画面都由连续曲线
+插值生成，不再切换轮廓、光照和位置不一致的独立图片，因此角色不会逐帧闪烁或变形。
 
-![逐帧动画预览](assets/frame_animation/frame_animation_preview.png)
+![原图分层骨骼预览](assets/rig/original_rig_preview.png)
 
 ## 下载
 
@@ -16,7 +16,7 @@ Coco 是一个面向 Windows 和 macOS 的透明桌面宠物。角色以
 - Windows：下载 EXE 文件，双击即可运行，无需安装。
 - macOS：下载 macOS ZIP，解压后运行 `Coco桌宠.app`。
 
-当前稳定版本为 `v1.3.1`。macOS 包使用本地临时签名；首次启动若被 Gatekeeper 阻止，
+当前稳定版本为 `v1.4.0`。macOS 包使用本地临时签名；首次启动若被 Gatekeeper 阻止，
 请在 Finder 中右键应用并选择“打开”。
 
 ## 主要功能
@@ -26,12 +26,12 @@ Coco 是一个面向 Windows 和 macOS 的透明桌面宠物。角色以
 - 持续呼吸、轻摆、踏步和挥手等动态待机，不会静止成单张图片。
 - 根据鼠标的全局位置平滑转向，左右方向经过自动测试。
 - 点击头部、左右脸、左右手、身体和脚部会进入不同动作组。
-- 32 种动作各有 8 张独立动作帧；每条时间线都是“共同待机首帧 → 8 帧动作 → 同一待机首帧”。
-- 动作使用实际帧切换，不透明叠加相距很远的姿势，因此不会出现双手、双脚重影。
-- 512 × 512 透明画布始终等比显示，不对角色做横向或纵向拉伸。
+- 32 种动作各有独立的身体轨迹和手、脚、头部关节曲线；曲线首尾均为中立待机姿势。
+- 相邻画面使用同一母版连续插值，没有跨图片硬切换，也不会出现双手、双脚淡入重影。
+- 始终保持原图 `745:1205` 比例，并只做横纵一致的等比缩放。
 - 对话气泡根据中英文内容自动换行和调整尺寸，位于角色旁边且不遮挡角色。
 - 中文模式允许偶尔混入简单英文；英文模式只显示英文。
-- 默认、红围巾、蓝披风、圆眼镜、海军帽五种造型。
+- 默认、红围巾、蓝披风、圆眼镜、海军帽五种造型；附件位于角色骨骼层内并跟随动作。
 - Windows 单文件 EXE 与 macOS 通用 App 都带有 Coco 原图头像图标。
 
 ## 操作
@@ -92,11 +92,11 @@ chmod +x build_macos.command
 
 ## 项目状态
 
-- 当前发布：[`v1.3.1`](https://github.com/ForceMind/PetDesktop/releases/tag/v1.3.1)
+- 当前发布：[`v1.4.0`](https://github.com/ForceMind/PetDesktop/releases/tag/v1.4.0)
 - Windows 与 macOS 由 GitHub Actions 自动构建。
-- 当前运行时只读取 `assets/frame_animation/base.png`、8 张待机帧、256 张动作帧和换装附件。
-- `assets/poses`、`assets/idle`、`assets/sprite_sheets` 与 `assets/rig/original_*` 是早期研究资料，
-  不参与当前角色本体动画。
+- 当前运行时只读取 `assets/rig/original_*` 原图分层和 `assets/rig/outfit_*` 换装附件。
+- `assets/frame_animation`、`assets/poses`、`assets/idle` 与 `assets/sprite_sheets` 是保留的研究资料，
+  不进入 Windows EXE 或 macOS App 的角色渲染路径。
 
 ## 许可证
 

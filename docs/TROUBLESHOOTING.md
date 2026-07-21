@@ -41,26 +41,27 @@ xcrun --find swiftc
 
 ## Coco 被拉伸
 
-当前角色帧使用 512 × 512 方形画布，目标显示区域也强制为正方形。若仍出现拉伸：
+当前角色使用 `745 × 1205` 原图骨骼画布，并对 X/Y 应用同一个缩放值。若仍出现拉伸：
 
-- 确认使用的是 `v1.3.0` 或更高版本。
+- 确认使用的是 `v1.4.0` 或更高版本。
 - 不要混用旧版本 EXE 与新版本资源。
-- 从源码构建时确认 `build.ps1` 嵌入的是 `assets/frame_animation`。
-- 运行 `tools/test_animation_continuity.ps1`，检查 `SquareCanvasNoStretch` 是否为 `True`。
+- 从源码构建时确认 `build.ps1` 嵌入的是 `assets/rig/original_*`。
+- 运行 `tools/test_animation_continuity.ps1`，检查 `OriginalAspectRatio` 是否为 `True`。
 
 ## 四肢出现多余贴图或绿色碎线
 
-1. 查看 `assets/frame_animation/frame_animation_preview.png`。
-2. 运行 `python tools/test_frame_assets.py`。
-3. 用 `tools/prepare_frame_animation.py` 重新执行绿幕去除和最大连通主体筛选。
-4. 检查对应 `source/inbetweens_*` 或 `source/actions_*` 单元格是否包含与身体相连的多余肢体。
+1. 查看 `assets/rig/original_rig_preview.png` 和 `dist/coherent-rig-preview.png`。
+2. 运行 `python tools/test_original_rig.py`。
+3. 用 `tools/prepare_rig_assets.py` 重新生成手脚遮罩和关节覆盖区。
+4. 检查关节角度限制；超过原图重叠区会暴露手臂或腰部的直切边缘。
 
 深色背景最容易暴露透明边缘问题，建议视觉验收时同时使用浅色和深色桌面。
 
 ## 角色闪烁
 
-- 确认没有把旧关节渲染器或 `assets/poses` 重新接入运行时。
-- 检查动作播放器是否显示单张实际帧；不要在大幅动作之间使用长时间 Alpha 交叉淡化，否则会产生双手重影。
+- 确认生产渲染器使用 `DrawRigCharacter`，且没有重新调用 `DrawFrameTimeline`。
+- 确认构建包不含 `frame_animation`；独立生成的姿势图轮廓不一致，硬切或淡化都会闪烁。
+- 运行连续性测试，检查 `SameRigAtEveryFrame` 和 `NeutralStartAndEnd`。
 - Windows 渲染计时器应保持约 30 FPS，且只在边界变化时调整窗口尺寸。
 - 关闭可能持续捕获或重绘透明窗口的第三方桌面美化工具后再测试。
 - 更新显卡驱动，并检查远程桌面环境是否禁用了分层窗口加速。
@@ -74,7 +75,13 @@ xcrun --find swiftc
 ```
 
 把鼠标移到角色左右两边直接观察方向。Windows 与 macOS 的屏幕 Y 轴方向不同，
-修改坐标换算时不要直接复制符号；跟随只应影响待机的轻微朝向，不应旋转动作帧。
+修改坐标换算时不要直接复制符号；跟随权重应在动作中平滑减弱并在动作末尾恢复。
+
+## 换装漂浮或没有穿在角色上
+
+- 附件必须在 `DrawRigCharacter` / `drawRigCharacter` 内绘制，不能使用窗口方形画布的固定百分比。
+- 披风应先于手脚和身体绘制，围巾、眼镜、帽子应在身体之后绘制。
+- 用诊断环境变量分别抓取 `RedScarf`、`BlueCape`、`RoundGlasses` 和 `SailorCap` 动作图。
 
 ## 对话显示不完整
 

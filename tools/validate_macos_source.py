@@ -87,8 +87,14 @@ def main() -> None:
     assert "drawAction(actionFramesA[index]" not in source, (
         "Independent generated poses must not be blended in the live renderer"
     )
-    assert "transform.scaleX(by: 1, yBy: 1)" in source, (
-        "Live macOS renderer must preserve the original image proportions"
+    assert "transform.scale(by: uniformScale)" in source, (
+        "Live macOS renderer must use one uniform scale for both axes"
+    )
+    assert "drawFrameTimeline()" not in source[source.index("override func draw"):source.index("private func drawIdleLayers")], (
+        "Live macOS renderer still switches independent generated pose frames"
+    )
+    assert "petHeight * 745 / 1205" in source, (
+        "Live macOS renderer must preserve the original Coco aspect ratio"
     )
 
     rig_dir = ROOT / "assets" / "rig"

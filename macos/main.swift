@@ -35,6 +35,8 @@ private struct RigPose {
 }
 
 private final class PetView: NSView {
+    // Legacy timeline helpers remain below for source compatibility, but the
+    // production draw path never reads these independent pose-frame arrays.
     private let frameBase: NSImage
     private let frameIdle: [NSImage]
     private let frameActions: [[NSImage]]
@@ -118,11 +120,10 @@ private final class PetView: NSView {
     override var acceptsFirstResponder: Bool { true }
 
     init(frame: NSRect, idleImage: NSImage, idleFollow: [NSImage], idleLife: [NSImage],
-         framesA: [NSImage], framesB: [NSImage], rig: [NSImage],
-         frameBase: NSImage, frameIdle: [NSImage], frameActions: [[NSImage]]) {
-        self.frameBase = frameBase
-        self.frameIdle = frameIdle
-        self.frameActions = frameActions
+         framesA: [NSImage], framesB: [NSImage], rig: [NSImage]) {
+        self.frameBase = idleImage
+        self.frameIdle = []
+        self.frameActions = []
         self.idleImage = idleImage
         self.idleFollowFrames = idleFollow
         self.idleLifeFrames = idleLife
@@ -224,13 +225,22 @@ private final class PetView: NSView {
         dirtyRect.fill()
 
         let petRect = petCanvasRect(for: speech)
+        let progress = actionIndex.map { actionProgress(for: $0) } ?? 0
+        let motion = actionIndex.map { motionForAction($0, progress: progress) } ?? idleMotion()
+        let uniformScale = min(1.14, max(0.76,
+            sqrt(max(0.01, abs(motion.scaleX * motion.scaleY)))))
+        let pose = actionIndex.map { rigPoseForAction($0, progress: progress) } ?? idleRigPose()
+        let trackingWeight = actionIndex == nil ? 1 : headTrackingWeight(progress)
         guard let context = NSGraphicsContext.current else { return }
         context.saveGraphicsState()
         let transform = NSAffineTransform()
-        transform.translateX(by: petRect.midX, yBy: petRect.midY)
-        if actionIndex == nil { transform.rotate(byDegrees: gazeX * 1.8) }
+        transform.translateX(by: petRect.midX + motion.dx,
+                             yBy: petRect.midY + motion.dy)
+        transform.rotate(byDegrees: motion.rotation)
+        transform.scale(by: uniformScale)
         transform.concat()
-        drawFrameTimeline()
+        drawRigCharacter(in: petRect, pose: pose,
+                         headTrackingWeight: trackingWeight)
         context.restoreGraphicsState()
 
         if let speech {
@@ -424,12 +434,20 @@ private final class PetView: NSView {
     }
 
     private func idleRigPose() -> RigPose {
-        guard idleGestureActive else { return RigPose() }
+        let seconds = Date.timeIntervalSinceReferenceDate - idleStarted
+        let breathe = CGFloat(sin(seconds * Double.pi * 2 / 2.8))
+        let step = CGFloat(sin(seconds * Double.pi * 2 / 4.6))
+        var pose = RigPose()
+        pose.leftArm = 7 * step + 2 * breathe
+        pose.rightArm = -7 * step - 2 * breathe
+        pose.leftLeg = 3 * step
+        pose.rightLeg = -3 * step
+        pose.head = 3 * CGFloat(sin(seconds * Double.pi * 2 / 5.8))
+        guard idleGestureActive else { return limitedRigPose(pose) }
         let raw = (Date.timeIntervalSinceReferenceDate - idleGestureStarted) / 1.8
         let t = CGFloat(min(1, max(0, raw)))
         let envelope = sine(.pi * t)
         let wave = sine(.pi * 4 * t)
-        var pose = RigPose()
         switch idleGesturePair {
         case 0:
             pose.leftArm = (58 + wave * 24) * envelope
@@ -494,12 +512,12 @@ private final class PetView: NSView {
 
     private func limitedRigPose(_ source: RigPose) -> RigPose {
         var p = source
-        p.leftArm = min(14, max(-14, p.leftArm * 0.10))
-        p.rightArm = min(14, max(-14, p.rightArm * 0.10))
-        p.leftLeg = min(6, max(-6, p.leftLeg * 0.10))
-        p.rightLeg = min(6, max(-6, p.rightLeg * 0.10))
-        p.leftLegY = min(7, max(-10, p.leftLegY * 0.12))
-        p.rightLegY = min(7, max(-10, p.rightLegY * 0.12))
+        p.leftArm = min(30, max(-30, p.leftArm * 0.30))
+        p.rightArm = min(30, max(-30, p.rightArm * 0.30))
+        p.leftLeg = min(14, max(-14, p.leftLeg * 0.30))
+        p.rightLeg = min(14, max(-14, p.rightLeg * 0.30))
+        p.leftLegY = min(12, max(-28, p.leftLegY * 0.40))
+        p.rightLegY = min(12, max(-28, p.rightLegY * 0.40))
         p.head = min(7, max(-7, p.head * 0.18))
         p.headX = min(5, max(-5, p.headX * 0.12))
         p.headY = min(5, max(-5, p.headY * 0.12))
@@ -697,7 +715,7 @@ private final class PetView: NSView {
     }
 
     private func contentSize(for text: String?) -> NSSize {
-        let petWidth = petHeight
+        let petWidth = petHeight * 745 / 1205
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSSize(width: petWidth + padding * 2 + extraWidth,
@@ -706,7 +724,7 @@ private final class PetView: NSView {
 
     private func petCanvasRect(for text: String?) -> NSRect {
         let size = contentSize(for: text)
-        let petWidth = petHeight
+        let petWidth = petHeight * 745 / 1205
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSRect(x: padding + extraWidth,
@@ -1042,38 +1060,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             rig.append(image)
         }
 
-        guard let frameBase = NSImage(contentsOf: resourceURL.appendingPathComponent("frame_base.png")) else {
-            showFatalError("Missing shared frame animation base.")
-            return
-        }
-        var frameIdle: [NSImage] = []
-        for frame in 1...8 {
-            let name = String(format: "frame_idle_%02d.png", frame)
-            guard let image = NSImage(contentsOf: resourceURL.appendingPathComponent(name)) else {
-                showFatalError("Missing idle frame: \(name)")
-                return
-            }
-            frameIdle.append(image)
-        }
-        var frameActions: [[NSImage]] = []
-        for action in 1...32 {
-            var sequence: [NSImage] = []
-            for frame in 1...8 {
-                let name = String(format: "frame_action_%02d_%02d.png", action, frame)
-                guard let image = NSImage(contentsOf: resourceURL.appendingPathComponent(name)) else {
-                    showFatalError("Missing action frame: \(name)")
-                    return
-                }
-                sequence.append(image)
-            }
-            frameActions.append(sequence)
-        }
-
         let view = PetView(frame: .zero, idleImage: idleImage,
                            idleFollow: idleFollow, idleLife: idleLife,
-                           framesA: framesA, framesB: framesB, rig: rig,
-                           frameBase: frameBase, frameIdle: frameIdle,
-                           frameActions: frameActions)
+                           framesA: framesA, framesB: framesB, rig: rig)
         let size = view.preferredContentSize
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.borderless],
