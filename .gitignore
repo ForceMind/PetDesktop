@@ -1,0 +1,8 @@
+dist/
+dist-macos/
+tmp/
+.macos-build/
+*.pdb
+*.user
+*.suo
+.DS_Store

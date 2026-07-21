@@ -1,0 +1,66 @@
+name: Build Coco Desktop Pet
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build single-file executable
+        shell: pwsh
+        run: ./build.ps1 -Clean
+      - name: Run smoke test
+        shell: pwsh
+        run: ./smoke_test.ps1
+      - name: Verify seven click regions
+        shell: pwsh
+        run: ./tools/test_click_regions.ps1
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coco桌宠-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS App
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal App bundle
+        run: |
+          chmod +x build_macos.command
+          CI=1 ./build_macos.command
+      - name: Verify universal architectures
+        run: lipo -archs "dist-macos/Coco桌宠.app/Contents/MacOS/CocoDesktopPet"
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coco桌宠-macOS
+          path: dist-macos/Coco桌宠-macOS.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-files/*

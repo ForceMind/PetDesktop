@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DIST_DIR="$SCRIPT_DIR/dist-macos"
+APP_DIR="$DIST_DIR/Coco桌宠.app"
+CONTENTS_DIR="$APP_DIR/Contents"
+MACOS_DIR="$CONTENTS_DIR/MacOS"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
+BUILD_DIR="$SCRIPT_DIR/.macos-build"
+
+if ! command -v xcrun >/dev/null 2>&1 || ! xcrun --find swiftc >/dev/null 2>&1; then
+    echo "未找到 Swift 编译器。请先从 App Store 安装 Xcode，然后重试。"
+    echo "Swift compiler not found. Install Xcode from the App Store, then try again."
+    read -r -p "按回车键退出 / Press Return to exit..."
+    exit 1
+fi
+
+rm -rf "$APP_DIR" "$BUILD_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
+
+cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
+cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
+
+for number in {01..32}; do
+    cp "$SCRIPT_DIR/assets/poses/action_${number}.png" "$RESOURCES_DIR/action_${number}.png"
+    cp "$SCRIPT_DIR/assets/poses/action_${number}_b.png" "$RESOURCES_DIR/action_${number}_b.png"
+done
+
+for number in {01..08}; do
+    cp "$SCRIPT_DIR/assets/idle/idle_follow_${number}.png" "$RESOURCES_DIR/idle_follow_${number}.png"
+    cp "$SCRIPT_DIR/assets/idle/idle_life_${number}.png" "$RESOURCES_DIR/idle_life_${number}.png"
+done
+
+SDK_PATH="$(xcrun --sdk macosx --show-sdk-path)"
+SOURCE_FILE="$SCRIPT_DIR/macos/main.swift"
+BUILT_BINARIES=()
+
+for architecture in arm64 x86_64; do
+    architecture_binary="$BUILD_DIR/CocoDesktopPet-$architecture"
+    if xcrun swiftc "$SOURCE_FILE" \
+        -sdk "$SDK_PATH" \
+        -target "$architecture-apple-macosx11.0" \
+        -framework Cocoa \
+        -O \
+        -o "$architecture_binary"; then
+        BUILT_BINARIES+=("$architecture_binary")
+    else
+        echo "跳过不受当前 Xcode 支持的架构：$architecture"
+    fi
+done
+
+if [[ ${#BUILT_BINARIES[@]} -eq 2 ]]; then
+    xcrun lipo -create "${BUILT_BINARIES[@]}" -output "$MACOS_DIR/CocoDesktopPet"
+elif [[ ${#BUILT_BINARIES[@]} -eq 1 ]]; then
+    cp "${BUILT_BINARIES[0]}" "$MACOS_DIR/CocoDesktopPet"
+else
+    echo "没有成功编译任何 macOS 架构。"
+    exit 1
+fi
+
+chmod +x "$MACOS_DIR/CocoDesktopPet"
+
+if command -v codesign >/dev/null 2>&1; then
+    codesign --force --deep --sign - "$APP_DIR"
+fi
+
+rm -rf "$BUILD_DIR"
+rm -f "$DIST_DIR/Coco桌宠-macOS.zip"
+ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$DIST_DIR/Coco桌宠-macOS.zip"
+
+echo
+echo "构建完成：$APP_DIR"
+echo "压缩包：$DIST_DIR/Coco桌宠-macOS.zip"
+if [[ -z "${CI:-}" ]]; then
+    open -R "$APP_DIR"
+    read -r -p "按回车键退出 / Press Return to exit..."
+fi

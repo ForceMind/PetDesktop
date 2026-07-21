@@ -1,0 +1,118 @@
+param(
+    [switch]$Clean
+)
+
+$ErrorActionPreference = 'Stop'
+$projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$distDir = Join-Path $projectDir 'dist'
+$assetPath = Join-Path $projectDir 'assets\coco.png'
+$poseDir = Join-Path $projectDir 'assets\poses'
+$idleDir = Join-Path $projectDir 'assets\idle'
+$iconPath = Join-Path $projectDir 'assets\coco.ico'
+$exeName = "Coco$([char]0x684c)$([char]0x5ba0).exe"
+$outputPath = Join-Path $distDir $exeName
+
+if (-not (Test-Path -LiteralPath $assetPath)) {
+    throw "Missing character asset: $assetPath"
+}
+
+$allPoseFiles = @(Get-ChildItem -LiteralPath $poseDir -Filter 'action_*.png' -File)
+$poseFilesA = @($allPoseFiles | Where-Object { $_.Name -match '^action_[0-9]{2}\.png$' } | Sort-Object Name)
+$poseFilesB = @($allPoseFiles | Where-Object { $_.Name -match '^action_[0-9]{2}_b\.png$' } | Sort-Object Name)
+if ($poseFilesA.Count -ne 32 -or $poseFilesB.Count -ne 32) {
+    throw "Expected 32 A-frame and 32 B-frame sprites in $poseDir; found $($poseFilesA.Count) and $($poseFilesB.Count)."
+}
+
+$idleFollowFiles = @(Get-ChildItem -LiteralPath $idleDir -Filter 'idle_follow_*.png' -File |
+    Where-Object { $_.Name -match '^idle_follow_[0-9]{2}\.png$' } | Sort-Object Name)
+$idleLifeFiles = @(Get-ChildItem -LiteralPath $idleDir -Filter 'idle_life_*.png' -File |
+    Where-Object { $_.Name -match '^idle_life_[0-9]{2}\.png$' } | Sort-Object Name)
+if ($idleFollowFiles.Count -ne 8 -or $idleLifeFiles.Count -ne 8) {
+    throw "Expected 8 follow and 8 lively-idle sprites in $idleDir; found $($idleFollowFiles.Count) and $($idleLifeFiles.Count)."
+}
+
+if ($Clean -and (Test-Path -LiteralPath $distDir)) {
+    $resolvedProject = [System.IO.Path]::GetFullPath($projectDir)
+    $resolvedDist = [System.IO.Path]::GetFullPath($distDir)
+    if (-not $resolvedDist.StartsWith($resolvedProject + [System.IO.Path]::DirectorySeparatorChar)) {
+        throw "Refusing to clean a path outside the project: $resolvedDist"
+    }
+    Remove-Item -LiteralPath $resolvedDist -Recurse -Force
+}
+
+New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+
+if (-not (Test-Path -LiteralPath $iconPath)) {
+    Add-Type -AssemblyName System.Drawing
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class CocoIconNative {
+    [DllImport("user32.dll")]
+    public static extern bool DestroyIcon(IntPtr handle);
+}
+'@
+    $source = [System.Drawing.Image]::FromFile($assetPath)
+    $canvas = New-Object System.Drawing.Bitmap 128,128
+    $graphics = [System.Drawing.Graphics]::FromImage($canvas)
+    $graphics.Clear([System.Drawing.Color]::Transparent)
+    $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $ratio = [Math]::Min(112.0 / $source.Width, 112.0 / $source.Height)
+    $drawWidth = [int][Math]::Round($source.Width * $ratio)
+    $drawHeight = [int][Math]::Round($source.Height * $ratio)
+    $drawX = [int]((128 - $drawWidth) / 2)
+    $drawY = [int]((128 - $drawHeight) / 2)
+    $graphics.DrawImage($source, $drawX, $drawY, $drawWidth, $drawHeight)
+    $graphics.Dispose()
+    $source.Dispose()
+    $iconHandle = $canvas.GetHicon()
+    $icon = [System.Drawing.Icon]::FromHandle($iconHandle)
+    $stream = [System.IO.File]::Open($iconPath, [System.IO.FileMode]::Create)
+    try { $icon.Save($stream) } finally { $stream.Dispose(); $icon.Dispose(); $canvas.Dispose(); [CocoIconNative]::DestroyIcon($iconHandle) | Out-Null }
+}
+
+$compilerCandidates = @(
+    "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe",
+    "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+)
+$compiler = $compilerCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $compiler) {
+    throw 'The Windows .NET Framework C# compiler was not found.'
+}
+
+$sourceFiles = @(
+    (Join-Path $projectDir 'Program.cs'),
+    (Join-Path $projectDir 'DesktopPetForm.cs'),
+    (Join-Path $projectDir 'NativeMethods.cs'),
+    (Join-Path $projectDir 'AssemblyInfo.cs')
+)
+
+$poseResourceArgs = @()
+foreach ($poseFile in ($poseFilesA + $poseFilesB)) {
+    $poseResourceArgs += "/resource:$($poseFile.FullName),CocoDesktopPet.$($poseFile.Name)"
+}
+foreach ($idleFile in ($idleFollowFiles + $idleLifeFiles)) {
+    $poseResourceArgs += "/resource:$($idleFile.FullName),CocoDesktopPet.$($idleFile.Name)"
+}
+
+$compilerArgs = @(
+    '/nologo',
+    '/target:winexe',
+    '/optimize+',
+    '/platform:anycpu',
+    "/out:$outputPath",
+    "/win32icon:$iconPath",
+    "/win32manifest:$(Join-Path $projectDir 'app.manifest')",
+    "/resource:$assetPath,CocoDesktopPet.coco.png",
+    '/reference:System.dll',
+    '/reference:System.Core.dll',
+    '/reference:System.Drawing.dll',
+    '/reference:System.Windows.Forms.dll'
+) + $poseResourceArgs + $sourceFiles
+
+& $compiler $compilerArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "Compilation failed with exit code: $LASTEXITCODE"
+}
+
+Write-Host "Build complete: $outputPath"
