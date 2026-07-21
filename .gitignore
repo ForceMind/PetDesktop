@@ -7,3 +7,4 @@ assets/frame_animation/source/actions_*_v2_green.png
 *.user
 *.suo
 .DS_Store
+__pycache__/

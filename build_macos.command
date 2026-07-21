@@ -12,7 +12,7 @@ BUILD_DIR="$SCRIPT_DIR/.macos-build"
 if ! command -v xcrun >/dev/null 2>&1 || ! xcrun --find swiftc >/dev/null 2>&1; then
     echo "未找到 Swift 编译器。请先从 App Store 安装 Xcode，然后重试。"
     echo "Swift compiler not found. Install Xcode from the App Store, then try again."
-    read -r -p "按回车键退出 / Press Return to exit..."
+    if [[ -z "${CI:-}" ]]; then read -r -p "按回车键退出 / Press Return to exit..."; fi
     exit 1
 fi
 
@@ -21,9 +21,13 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
-for rig_asset in original_core original_arm_left original_arm_right original_leg_left original_leg_right original_socket_arm_left original_socket_arm_right original_socket_leg_left original_socket_leg_right outfit_scarf outfit_cape outfit_glasses outfit_cap; do
-    cp "$SCRIPT_DIR/assets/rig/${rig_asset}.png" "$RESOURCES_DIR/${rig_asset}.png"
-done
+mkdir -p "$RESOURCES_DIR/frame_animation_v2"
+cp "$SCRIPT_DIR/assets/frame_animation_v2/neutral_512.png" \
+    "$RESOURCES_DIR/frame_animation_v2/neutral_512.png"
+cp -R "$SCRIPT_DIR/assets/frame_animation_v2/idle" \
+    "$RESOURCES_DIR/frame_animation_v2/idle"
+cp -R "$SCRIPT_DIR/assets/frame_animation_v2/actions" \
+    "$RESOURCES_DIR/frame_animation_v2/actions"
 
 ICONSET_DIR="$BUILD_DIR/CocoApp.iconset"
 mkdir -p "$ICONSET_DIR"
@@ -50,7 +54,7 @@ for architecture in arm64 x86_64; do
         -o "$architecture_binary"; then
         BUILT_BINARIES+=("$architecture_binary")
     else
-        echo "跳过不受当前 Xcode 支持的架构：$architecture"
+        echo "跳过当前 Xcode 不支持的架构：$architecture"
     fi
 done
 

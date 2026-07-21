@@ -152,6 +152,7 @@ namespace CocoDesktopPet
 
         private Bitmap petImage;
         private Bitmap[] idleFrameImages;
+        private Bitmap[][] idleOutfitFrameImages;
         private Bitmap[][] actionFrameImages;
         // Kept only for compatibility with the legacy helper methods below;
         // the production renderer never populates or draws these arrays.
@@ -245,27 +246,15 @@ namespace CocoDesktopPet
                      ControlStyles.OptimizedDoubleBuffer, true);
 
             random = new Random();
-            // Every rendered frame now comes from this single, stable original-pixel
-            // rig.  Swapping independently generated pose images caused Coco's
-            // outline, lighting and registration to jump between frames.
-            petImage = LoadPetImage();
-            idleFrameImages = null;
-            actionFrameImages = null;
+            // v2 renders one complete Coco in every frame. No body part or outfit
+            // is assembled at runtime, so shoulders, hands, clothing and the
+            // transparent silhouette cannot separate while animating.
+            petImage = LoadResourceBitmap("frame_neutral.png");
+            idleOutfitFrameImages = LoadFrameIdles();
+            idleFrameImages = idleOutfitFrameImages[0];
+            actionFrameImages = LoadFrameActions();
             idleFollowImages = null;
             idleLifeImages = null;
-            rigCore = LoadResourceBitmap("rig_original_core.png");
-            rigArmLeft = LoadResourceBitmap("rig_original_arm_left.png");
-            rigArmRight = LoadResourceBitmap("rig_original_arm_right.png");
-            rigLegLeft = LoadResourceBitmap("rig_original_leg_left.png");
-            rigLegRight = LoadResourceBitmap("rig_original_leg_right.png");
-            rigSocketArmLeft = LoadResourceBitmap("rig_original_socket_arm_left.png");
-            rigSocketArmRight = LoadResourceBitmap("rig_original_socket_arm_right.png");
-            rigSocketLegLeft = LoadResourceBitmap("rig_original_socket_leg_left.png");
-            rigSocketLegRight = LoadResourceBitmap("rig_original_socket_leg_right.png");
-            outfitScarf = LoadResourceBitmap("rig_outfit_scarf.png");
-            outfitCape = LoadResourceBitmap("rig_outfit_cape.png");
-            outfitGlasses = LoadResourceBitmap("rig_outfit_glasses.png");
-            outfitCap = LoadResourceBitmap("rig_outfit_cap.png");
             idleStarted = DateTime.UtcNow;
             nextIdleGestureAt = idleStarted.AddMilliseconds(1800 + random.Next(1800));
             UpdatePetDimensions();
@@ -275,7 +264,7 @@ namespace CocoDesktopPet
             petScreenY = work.Bottom - petHeight - 24;
 
             animationTimer = new Timer();
-            // Joint and body transforms are sampled at a stable 30 FPS.
+            // Authored whole-character frames are sampled at a stable 30 FPS.
             animationTimer.Interval = 33;
             animationTimer.Tick += AnimationTimerTick;
 
@@ -382,6 +371,14 @@ namespace CocoDesktopPet
             }
             DisposeImages(idleFrameImages);
             idleFrameImages = null;
+            if (idleOutfitFrameImages != null)
+            {
+                for (int index = 1; index < idleOutfitFrameImages.Length; index++)
+                {
+                    DisposeImages(idleOutfitFrameImages[index]);
+                }
+                idleOutfitFrameImages = null;
+            }
             if (actionFrameImages != null)
             {
                 foreach (Bitmap[] sequence in actionFrameImages)
@@ -503,6 +500,9 @@ namespace CocoDesktopPet
             item.Click += delegate
             {
                 outfit = (OutfitKind)item.Tag;
+                // Start the selected fully rendered outfit loop at its authored
+                // standing frame instead of switching halfway through a cycle.
+                idleStarted = DateTime.UtcNow;
                 UpdateOutfitMenuChecks();
                 ShowBubble(LocalizedMessage("新造型准备好啦！", "New outfit ready!"), 1800);
             };
@@ -657,6 +657,22 @@ namespace CocoDesktopPet
                 }
             }
             return actions;
+        }
+
+        private static Bitmap[][] LoadFrameIdles()
+        {
+            Bitmap[][] outfits = new Bitmap[5][];
+            for (int outfitIndex = 0; outfitIndex < outfits.Length; outfitIndex++)
+            {
+                outfits[outfitIndex] = new Bitmap[7];
+                for (int frameIndex = 0; frameIndex < 7; frameIndex++)
+                {
+                    string resourceName = string.Format("frame_idle_{0:D2}_{1:D2}.png",
+                        outfitIndex, frameIndex + 1);
+                    outfits[outfitIndex][frameIndex] = LoadResourceBitmap(resourceName);
+                }
+            }
+            return outfits;
         }
 
         private static void DisposeImages(Bitmap[] images)
@@ -823,8 +839,9 @@ namespace CocoDesktopPet
         private void UpdatePetDimensions()
         {
             petHeight = Math.Max(120, (int)Math.Round(BasePetHeight * scaleFactor));
-            // Preserve the exact aspect ratio of the cropped original Coco artwork.
-            petWidth = Math.Max(74, (int)Math.Round(petHeight * (745.0 / 1205.0)));
+            // All authored v2 frames use a square canvas. Preserve that canvas
+            // exactly; non-square drawing would visibly stretch Coco.
+            petWidth = petHeight;
         }
 
         private void UpdateSizeMenuChecks()
@@ -1212,33 +1229,12 @@ namespace CocoDesktopPet
                 graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-                float offsetX;
-                float offsetY;
-                float scaleX;
-                float scaleY;
-                float rotation;
-                CalculateAnimation(out offsetX, out offsetY, out scaleX, out scaleY, out rotation);
-
-                // Never stretch Coco differently on X and Y.  A uniform transform
-                // keeps every interpolated frame registered to the same silhouette.
-                float uniformScale = (float)Math.Sqrt(Math.Max(0.01F, Math.Abs(scaleX * scaleY)));
-                uniformScale = ClampFloat(uniformScale, 0.76F, 1.14F);
-                bool centerPivot = interaction == InteractionKind.Spin ||
-                    interaction == InteractionKind.ReverseSpin ||
-                    interaction == InteractionKind.Backflip ||
-                    interaction == InteractionKind.Frontflip;
-
                 GraphicsState state = graphics.Save();
-                float pivotX = characterX + petWidth / 2F + offsetX;
-                float pivotY = centerPivot
-                    ? characterY + petHeight / 2F + offsetY
-                    : characterY + petHeight + offsetY;
-                graphics.TranslateTransform(pivotX, pivotY);
-                graphics.RotateTransform(rotation);
-                graphics.ScaleTransform(uniformScale, uniformScale);
+                graphics.TranslateTransform(characterX + petWidth / 2F,
+                    characterY + petHeight);
 
                 lastCharacterBounds = new Rectangle(characterX, characterY, petWidth, petHeight);
-                DrawRigCharacter(graphics, centerPivot, CalculateRigPose(), GetHeadTrackingWeight());
+                DrawFrameTimeline(graphics, petHeight);
                 graphics.Restore(state);
 
                 if (!string.IsNullOrEmpty(bubbleText))
@@ -1248,8 +1244,12 @@ namespace CocoDesktopPet
             }
 
             string diagnosticPath = Environment.GetEnvironmentVariable("COCO_PET_DIAGNOSTIC_FRAME");
+            bool waitingForDiagnosticAction = interaction == InteractionKind.None &&
+                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(
+                    "COCO_PET_DIAGNOSTIC_ACTION"));
             double diagnosticProgress = GetInteractionProgress();
-            if (!diagnosticFrameSaved && !string.IsNullOrEmpty(diagnosticPath) &&
+            if (!waitingForDiagnosticAction && !diagnosticFrameSaved &&
+                !string.IsNullOrEmpty(diagnosticPath) &&
                 (interaction == InteractionKind.None ||
                  (diagnosticProgress >= 0.56 && diagnosticProgress <= 0.72)))
             {
@@ -1284,59 +1284,37 @@ namespace CocoDesktopPet
             float blend;
             GetFrameTimeline(out first, out second, out blend);
 
-            if (outfit == OutfitKind.BlueCape)
-            {
-                DrawFrameAccessory(graphics, outfitCape, canvasSize,
-                    0.18F, 0.43F, 0.64F);
-            }
-
-            DrawSprite(graphics, first, canvasSize, canvasSize, true, 1F - blend);
-            DrawSprite(graphics, second, canvasSize, canvasSize, true, blend);
-
-            if (outfit == OutfitKind.RedScarf)
-            {
-                DrawFrameAccessory(graphics, outfitScarf, canvasSize,
-                    0.34F, 0.51F, 0.32F);
-            }
-            else if (outfit == OutfitKind.RoundGlasses)
-            {
-                DrawFrameAccessory(graphics, outfitGlasses, canvasSize,
-                    0.31F, 0.31F, 0.38F);
-            }
-            else if (outfit == OutfitKind.SailorCap)
-            {
-                DrawFrameAccessory(graphics, outfitCap, canvasSize,
-                    0.33F, 0.13F, 0.35F);
-            }
+            // The v2 timeline deliberately renders exactly one opaque authored
+            // frame. Drawing a second frame, even with a nominal zero opacity,
+            // risks translucent contours in layered-window composition.
+            DrawSprite(graphics, first, canvasSize, canvasSize, false, 1F);
         }
 
         private void GetFrameTimeline(out Bitmap first, out Bitmap second, out float blend)
         {
             if (interaction == InteractionKind.None)
             {
-                // Ten anchors: base, eight living idle poses, base. The loop
-                // therefore crosses the exact same shared frame at its seam.
+                Bitmap[] sequence = idleOutfitFrameImages[Math.Max(0,
+                    Math.Min(idleOutfitFrameImages.Length - 1, (int)outfit))];
                 double elapsed = Math.Max(0.0,
                     (DateTime.UtcNow - idleStarted).TotalMilliseconds);
-                double position = (elapsed % 5200.0) / 5200.0 * 9.0;
-                int segment = Math.Min(8, (int)Math.Floor(position));
-                double local = position - segment;
-                first = GetIdleAnchor(segment);
-                second = GetIdleAnchor(segment + 1);
-                blend = (float)SmoothStep(local);
+                // Authored whole frames play without cross-fading. Cross-fading
+                // creates doubled hands and translucent outlines on a layered window.
+                int frameIndex = (int)Math.Floor(elapsed / 115.0) % sequence.Length;
+                first = sequence[frameIndex];
+                second = first;
+                blend = 0F;
                 return;
             }
 
-            // Ten actual animation frames per action: shared idle base, eight
-            // independently authored chronological poses, shared base again.
-            // Select a real frame rather than alpha-blending two poses; this
-            // prevents doubled hands/feet and the flicker caused by ghosting.
-            double actionPosition = GetInteractionProgress() * 9.0;
-            int actionFrame = Math.Min(9,
-                (int)Math.Floor(actionPosition + 0.5));
+            // Eight whole-character frames: exact default neutral, six authored
+            // poses, exact default neutral. No rig, overlay or interpolation.
             int actionIndex = Math.Max(0, Math.Min(actionFrameImages.Length - 1,
                 (int)interaction - 1));
-            first = GetActionAnchor(actionIndex, actionFrame);
+            Bitmap[] actionSequence = actionFrameImages[actionIndex];
+            int actionFrame = Math.Min(actionSequence.Length - 1,
+                (int)Math.Floor(GetInteractionProgress() * actionSequence.Length));
+            first = actionSequence[actionFrame];
             second = first;
             blend = 0F;
         }

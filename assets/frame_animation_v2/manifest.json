@@ -1,0 +1,380 @@
+{
+  "format": 2,
+  "rendering": "whole-character-frames-only",
+  "canvas": {
+    "width": 512,
+    "height": 512
+  },
+  "fps": 12,
+  "neutral": "neutral_512.png",
+  "outfitPolicy": "idle-only-whole-frame-regeneration",
+  "idle": {
+    "default": [
+      "idle/default/frame_01.png",
+      "idle/default/frame_02.png",
+      "idle/default/frame_03.png",
+      "idle/default/frame_04.png",
+      "idle/default/frame_05.png",
+      "idle/default/frame_06.png",
+      "idle/default/frame_07.png"
+    ],
+    "red_scarf": [
+      "idle/red_scarf/frame_01.png",
+      "idle/red_scarf/frame_02.png",
+      "idle/red_scarf/frame_03.png",
+      "idle/red_scarf/frame_04.png",
+      "idle/red_scarf/frame_05.png",
+      "idle/red_scarf/frame_06.png",
+      "idle/red_scarf/frame_07.png"
+    ],
+    "blue_cape": [
+      "idle/blue_cape/frame_01.png",
+      "idle/blue_cape/frame_02.png",
+      "idle/blue_cape/frame_03.png",
+      "idle/blue_cape/frame_04.png",
+      "idle/blue_cape/frame_05.png",
+      "idle/blue_cape/frame_06.png",
+      "idle/blue_cape/frame_07.png"
+    ],
+    "round_glasses": [
+      "idle/round_glasses/frame_01.png",
+      "idle/round_glasses/frame_02.png",
+      "idle/round_glasses/frame_03.png",
+      "idle/round_glasses/frame_04.png",
+      "idle/round_glasses/frame_05.png",
+      "idle/round_glasses/frame_06.png",
+      "idle/round_glasses/frame_07.png"
+    ],
+    "sailor_cap": [
+      "idle/sailor_cap/frame_01.png",
+      "idle/sailor_cap/frame_02.png",
+      "idle/sailor_cap/frame_03.png",
+      "idle/sailor_cap/frame_04.png",
+      "idle/sailor_cap/frame_05.png",
+      "idle/sailor_cap/frame_06.png",
+      "idle/sailor_cap/frame_07.png"
+    ]
+  },
+  "actions": {
+    "01_jump": [
+      "actions/01_jump/frame_01.png",
+      "actions/01_jump/frame_02.png",
+      "actions/01_jump/frame_03.png",
+      "actions/01_jump/frame_04.png",
+      "actions/01_jump/frame_05.png",
+      "actions/01_jump/frame_06.png",
+      "actions/01_jump/frame_07.png",
+      "actions/01_jump/frame_08.png"
+    ],
+    "02_squash": [
+      "actions/02_squash/frame_01.png",
+      "actions/02_squash/frame_02.png",
+      "actions/02_squash/frame_03.png",
+      "actions/02_squash/frame_04.png",
+      "actions/02_squash/frame_05.png",
+      "actions/02_squash/frame_06.png",
+      "actions/02_squash/frame_07.png",
+      "actions/02_squash/frame_08.png"
+    ],
+    "03_shake": [
+      "actions/03_shake/frame_01.png",
+      "actions/03_shake/frame_02.png",
+      "actions/03_shake/frame_03.png",
+      "actions/03_shake/frame_04.png",
+      "actions/03_shake/frame_05.png",
+      "actions/03_shake/frame_06.png",
+      "actions/03_shake/frame_07.png",
+      "actions/03_shake/frame_08.png"
+    ],
+    "04_bounce": [
+      "actions/04_bounce/frame_01.png",
+      "actions/04_bounce/frame_02.png",
+      "actions/04_bounce/frame_03.png",
+      "actions/04_bounce/frame_04.png",
+      "actions/04_bounce/frame_05.png",
+      "actions/04_bounce/frame_06.png",
+      "actions/04_bounce/frame_07.png",
+      "actions/04_bounce/frame_08.png"
+    ],
+    "05_nod": [
+      "actions/05_nod/frame_01.png",
+      "actions/05_nod/frame_02.png",
+      "actions/05_nod/frame_03.png",
+      "actions/05_nod/frame_04.png",
+      "actions/05_nod/frame_05.png",
+      "actions/05_nod/frame_06.png",
+      "actions/05_nod/frame_07.png",
+      "actions/05_nod/frame_08.png"
+    ],
+    "06_sway": [
+      "actions/06_sway/frame_01.png",
+      "actions/06_sway/frame_02.png",
+      "actions/06_sway/frame_03.png",
+      "actions/06_sway/frame_04.png",
+      "actions/06_sway/frame_05.png",
+      "actions/06_sway/frame_06.png",
+      "actions/06_sway/frame_07.png",
+      "actions/06_sway/frame_08.png"
+    ],
+    "07_spin": [
+      "actions/07_spin/frame_01.png",
+      "actions/07_spin/frame_02.png",
+      "actions/07_spin/frame_03.png",
+      "actions/07_spin/frame_04.png",
+      "actions/07_spin/frame_05.png",
+      "actions/07_spin/frame_06.png",
+      "actions/07_spin/frame_07.png",
+      "actions/07_spin/frame_08.png"
+    ],
+    "08_reverse_spin": [
+      "actions/08_reverse_spin/frame_01.png",
+      "actions/08_reverse_spin/frame_02.png",
+      "actions/08_reverse_spin/frame_03.png",
+      "actions/08_reverse_spin/frame_04.png",
+      "actions/08_reverse_spin/frame_05.png",
+      "actions/08_reverse_spin/frame_06.png",
+      "actions/08_reverse_spin/frame_07.png",
+      "actions/08_reverse_spin/frame_08.png"
+    ],
+    "09_hop_left": [
+      "actions/09_hop_left/frame_01.png",
+      "actions/09_hop_left/frame_02.png",
+      "actions/09_hop_left/frame_03.png",
+      "actions/09_hop_left/frame_04.png",
+      "actions/09_hop_left/frame_05.png",
+      "actions/09_hop_left/frame_06.png",
+      "actions/09_hop_left/frame_07.png",
+      "actions/09_hop_left/frame_08.png"
+    ],
+    "10_hop_right": [
+      "actions/10_hop_right/frame_01.png",
+      "actions/10_hop_right/frame_02.png",
+      "actions/10_hop_right/frame_03.png",
+      "actions/10_hop_right/frame_04.png",
+      "actions/10_hop_right/frame_05.png",
+      "actions/10_hop_right/frame_06.png",
+      "actions/10_hop_right/frame_07.png",
+      "actions/10_hop_right/frame_08.png"
+    ],
+    "11_tiptoe": [
+      "actions/11_tiptoe/frame_01.png",
+      "actions/11_tiptoe/frame_02.png",
+      "actions/11_tiptoe/frame_03.png",
+      "actions/11_tiptoe/frame_04.png",
+      "actions/11_tiptoe/frame_05.png",
+      "actions/11_tiptoe/frame_06.png",
+      "actions/11_tiptoe/frame_07.png",
+      "actions/11_tiptoe/frame_08.png"
+    ],
+    "12_stretch": [
+      "actions/12_stretch/frame_01.png",
+      "actions/12_stretch/frame_02.png",
+      "actions/12_stretch/frame_03.png",
+      "actions/12_stretch/frame_04.png",
+      "actions/12_stretch/frame_05.png",
+      "actions/12_stretch/frame_06.png",
+      "actions/12_stretch/frame_07.png",
+      "actions/12_stretch/frame_08.png"
+    ],
+    "13_shrink": [
+      "actions/13_shrink/frame_01.png",
+      "actions/13_shrink/frame_02.png",
+      "actions/13_shrink/frame_03.png",
+      "actions/13_shrink/frame_04.png",
+      "actions/13_shrink/frame_05.png",
+      "actions/13_shrink/frame_06.png",
+      "actions/13_shrink/frame_07.png",
+      "actions/13_shrink/frame_08.png"
+    ],
+    "14_peek_left": [
+      "actions/14_peek_left/frame_01.png",
+      "actions/14_peek_left/frame_02.png",
+      "actions/14_peek_left/frame_03.png",
+      "actions/14_peek_left/frame_04.png",
+      "actions/14_peek_left/frame_05.png",
+      "actions/14_peek_left/frame_06.png",
+      "actions/14_peek_left/frame_07.png",
+      "actions/14_peek_left/frame_08.png"
+    ],
+    "15_peek_right": [
+      "actions/15_peek_right/frame_01.png",
+      "actions/15_peek_right/frame_02.png",
+      "actions/15_peek_right/frame_03.png",
+      "actions/15_peek_right/frame_04.png",
+      "actions/15_peek_right/frame_05.png",
+      "actions/15_peek_right/frame_06.png",
+      "actions/15_peek_right/frame_07.png",
+      "actions/15_peek_right/frame_08.png"
+    ],
+    "16_figure_eight": [
+      "actions/16_figure_eight/frame_01.png",
+      "actions/16_figure_eight/frame_02.png",
+      "actions/16_figure_eight/frame_03.png",
+      "actions/16_figure_eight/frame_04.png",
+      "actions/16_figure_eight/frame_05.png",
+      "actions/16_figure_eight/frame_06.png",
+      "actions/16_figure_eight/frame_07.png",
+      "actions/16_figure_eight/frame_08.png"
+    ],
+    "17_tremble": [
+      "actions/17_tremble/frame_01.png",
+      "actions/17_tremble/frame_02.png",
+      "actions/17_tremble/frame_03.png",
+      "actions/17_tremble/frame_04.png",
+      "actions/17_tremble/frame_05.png",
+      "actions/17_tremble/frame_06.png",
+      "actions/17_tremble/frame_07.png",
+      "actions/17_tremble/frame_08.png"
+    ],
+    "18_proud": [
+      "actions/18_proud/frame_01.png",
+      "actions/18_proud/frame_02.png",
+      "actions/18_proud/frame_03.png",
+      "actions/18_proud/frame_04.png",
+      "actions/18_proud/frame_05.png",
+      "actions/18_proud/frame_06.png",
+      "actions/18_proud/frame_07.png",
+      "actions/18_proud/frame_08.png"
+    ],
+    "19_bow": [
+      "actions/19_bow/frame_01.png",
+      "actions/19_bow/frame_02.png",
+      "actions/19_bow/frame_03.png",
+      "actions/19_bow/frame_04.png",
+      "actions/19_bow/frame_05.png",
+      "actions/19_bow/frame_06.png",
+      "actions/19_bow/frame_07.png",
+      "actions/19_bow/frame_08.png"
+    ],
+    "20_backflip": [
+      "actions/20_backflip/frame_01.png",
+      "actions/20_backflip/frame_02.png",
+      "actions/20_backflip/frame_03.png",
+      "actions/20_backflip/frame_04.png",
+      "actions/20_backflip/frame_05.png",
+      "actions/20_backflip/frame_06.png",
+      "actions/20_backflip/frame_07.png",
+      "actions/20_backflip/frame_08.png"
+    ],
+    "21_frontflip": [
+      "actions/21_frontflip/frame_01.png",
+      "actions/21_frontflip/frame_02.png",
+      "actions/21_frontflip/frame_03.png",
+      "actions/21_frontflip/frame_04.png",
+      "actions/21_frontflip/frame_05.png",
+      "actions/21_frontflip/frame_06.png",
+      "actions/21_frontflip/frame_07.png",
+      "actions/21_frontflip/frame_08.png"
+    ],
+    "22_dance": [
+      "actions/22_dance/frame_01.png",
+      "actions/22_dance/frame_02.png",
+      "actions/22_dance/frame_03.png",
+      "actions/22_dance/frame_04.png",
+      "actions/22_dance/frame_05.png",
+      "actions/22_dance/frame_06.png",
+      "actions/22_dance/frame_07.png",
+      "actions/22_dance/frame_08.png"
+    ],
+    "23_moonwalk": [
+      "actions/23_moonwalk/frame_01.png",
+      "actions/23_moonwalk/frame_02.png",
+      "actions/23_moonwalk/frame_03.png",
+      "actions/23_moonwalk/frame_04.png",
+      "actions/23_moonwalk/frame_05.png",
+      "actions/23_moonwalk/frame_06.png",
+      "actions/23_moonwalk/frame_07.png",
+      "actions/23_moonwalk/frame_08.png"
+    ],
+    "24_heartbeat": [
+      "actions/24_heartbeat/frame_01.png",
+      "actions/24_heartbeat/frame_02.png",
+      "actions/24_heartbeat/frame_03.png",
+      "actions/24_heartbeat/frame_04.png",
+      "actions/24_heartbeat/frame_05.png",
+      "actions/24_heartbeat/frame_06.png",
+      "actions/24_heartbeat/frame_07.png",
+      "actions/24_heartbeat/frame_08.png"
+    ],
+    "25_dizzy": [
+      "actions/25_dizzy/frame_01.png",
+      "actions/25_dizzy/frame_02.png",
+      "actions/25_dizzy/frame_03.png",
+      "actions/25_dizzy/frame_04.png",
+      "actions/25_dizzy/frame_05.png",
+      "actions/25_dizzy/frame_06.png",
+      "actions/25_dizzy/frame_07.png",
+      "actions/25_dizzy/frame_08.png"
+    ],
+    "26_sneak": [
+      "actions/26_sneak/frame_01.png",
+      "actions/26_sneak/frame_02.png",
+      "actions/26_sneak/frame_03.png",
+      "actions/26_sneak/frame_04.png",
+      "actions/26_sneak/frame_05.png",
+      "actions/26_sneak/frame_06.png",
+      "actions/26_sneak/frame_07.png",
+      "actions/26_sneak/frame_08.png"
+    ],
+    "27_charge": [
+      "actions/27_charge/frame_01.png",
+      "actions/27_charge/frame_02.png",
+      "actions/27_charge/frame_03.png",
+      "actions/27_charge/frame_04.png",
+      "actions/27_charge/frame_05.png",
+      "actions/27_charge/frame_06.png",
+      "actions/27_charge/frame_07.png",
+      "actions/27_charge/frame_08.png"
+    ],
+    "28_float": [
+      "actions/28_float/frame_01.png",
+      "actions/28_float/frame_02.png",
+      "actions/28_float/frame_03.png",
+      "actions/28_float/frame_04.png",
+      "actions/28_float/frame_05.png",
+      "actions/28_float/frame_06.png",
+      "actions/28_float/frame_07.png",
+      "actions/28_float/frame_08.png"
+    ],
+    "29_stomp": [
+      "actions/29_stomp/frame_01.png",
+      "actions/29_stomp/frame_02.png",
+      "actions/29_stomp/frame_03.png",
+      "actions/29_stomp/frame_04.png",
+      "actions/29_stomp/frame_05.png",
+      "actions/29_stomp/frame_06.png",
+      "actions/29_stomp/frame_07.png",
+      "actions/29_stomp/frame_08.png"
+    ],
+    "30_laugh": [
+      "actions/30_laugh/frame_01.png",
+      "actions/30_laugh/frame_02.png",
+      "actions/30_laugh/frame_03.png",
+      "actions/30_laugh/frame_04.png",
+      "actions/30_laugh/frame_05.png",
+      "actions/30_laugh/frame_06.png",
+      "actions/30_laugh/frame_07.png",
+      "actions/30_laugh/frame_08.png"
+    ],
+    "31_surprise": [
+      "actions/31_surprise/frame_01.png",
+      "actions/31_surprise/frame_02.png",
+      "actions/31_surprise/frame_03.png",
+      "actions/31_surprise/frame_04.png",
+      "actions/31_surprise/frame_05.png",
+      "actions/31_surprise/frame_06.png",
+      "actions/31_surprise/frame_07.png",
+      "actions/31_surprise/frame_08.png"
+    ],
+    "32_sleepy": [
+      "actions/32_sleepy/frame_01.png",
+      "actions/32_sleepy/frame_02.png",
+      "actions/32_sleepy/frame_03.png",
+      "actions/32_sleepy/frame_04.png",
+      "actions/32_sleepy/frame_05.png",
+      "actions/32_sleepy/frame_06.png",
+      "actions/32_sleepy/frame_07.png",
+      "actions/32_sleepy/frame_08.png"
+    ]
+  }
+}

@@ -6,13 +6,16 @@ $ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $distDir = Join-Path $projectDir 'dist'
 $assetPath = Join-Path $projectDir 'assets\coco.png'
-$rigDir = Join-Path $projectDir 'assets\rig'
+$frameArchivePath = Join-Path $projectDir 'assets\frame_animation_v2\runtime_frames.zip'
 $iconPath = Join-Path $projectDir 'assets\coco.ico'
 $exeName = "Coco$([char]0x684c)$([char]0x5ba0).exe"
 $outputPath = Join-Path $distDir $exeName
 
 if (-not (Test-Path -LiteralPath $assetPath)) {
     throw "Missing character asset: $assetPath"
+}
+if (-not (Test-Path -LiteralPath $frameArchivePath)) {
+    throw "Missing authored frame archive: $frameArchivePath. Run: py tools\prepare_frame_animation_v2.py"
 }
 
 if ($Clean -and (Test-Path -LiteralPath $distDir)) {
@@ -71,30 +74,6 @@ $sourceFiles = @(
     (Join-Path $projectDir 'AssemblyInfo.cs')
 )
 
-$rigResourceNames = @(
-    'original_core.png',
-    'original_arm_left.png',
-    'original_arm_right.png',
-    'original_leg_left.png',
-    'original_leg_right.png',
-    'original_socket_arm_left.png',
-    'original_socket_arm_right.png',
-    'original_socket_leg_left.png',
-    'original_socket_leg_right.png',
-    'outfit_scarf.png',
-    'outfit_cape.png',
-    'outfit_glasses.png',
-    'outfit_cap.png'
-)
-$rigResourceArgs = @()
-foreach ($rigName in $rigResourceNames) {
-    $rigPath = Join-Path $rigDir $rigName
-    if (-not (Test-Path -LiteralPath $rigPath)) {
-        throw "Missing rig resource: $rigPath"
-    }
-    $rigResourceArgs += "/resource:$rigPath,CocoDesktopPet.rig_$rigName"
-}
-
 $compilerArgs = @(
     '/nologo',
     '/target:winexe',
@@ -104,12 +83,13 @@ $compilerArgs = @(
     "/win32icon:$iconPath",
     "/win32manifest:$(Join-Path $projectDir 'app.manifest')",
     "/resource:$assetPath,CocoDesktopPet.coco.png",
+    "/resource:$frameArchivePath,CocoDesktopPet.frame_animation.zip",
     '/reference:System.dll',
     '/reference:System.Core.dll',
     '/reference:System.Drawing.dll',
     '/reference:System.IO.Compression.dll',
     '/reference:System.Windows.Forms.dll'
-) + $rigResourceArgs + $sourceFiles
+) + $sourceFiles
 
 & $compiler $compilerArgs
 $compileExitCode = $LASTEXITCODE

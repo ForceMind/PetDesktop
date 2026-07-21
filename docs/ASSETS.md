@@ -1,57 +1,39 @@
-# 素材与骨骼资源
+# 素材说明
 
-## 角色母版
+## 角色参考
 
-`assets/coco.png` 是 Coco 的唯一身份母版。麻布纹理、纽扣眼睛、蓝色羽冠、牙齿、腹部补丁、颜色和
-比例都必须来自这张图，不能用每个动作单独重绘的图片替换。
+`assets/coco.png` 是用户提供的最初 Coco 角色图，用于保持脸、麻布材质、纽扣眼睛、牙齿、蓝色羽毛冠和身体比例。它正在招手，因此不能直接充当自然站立待机帧。
 
 ## 生产资源
 
-| 路径 | 用途 |
-| --- | --- |
-| `assets/rig/original_core.png` | 头部和身体核心，覆盖关节内侧接缝 |
-| `assets/rig/original_arm_left.png` / `original_arm_right.png` | 两个可旋转手臂层 |
-| `assets/rig/original_leg_left.png` / `original_leg_right.png` | 两个可旋转、抬起的脚部层 |
-| `assets/rig/original_socket_*.png` | 四个只在关节运动时淡入的麻布连接衬层 |
-| `assets/rig/outfit_*.png` | 红围巾、蓝披风、圆眼镜和海军帽 |
-| `assets/coco.ico` | Windows 程序图标 |
-| `assets/rig/app_icon.png` | macOS 图标源 |
+`assets/frame_animation_v2` 包含新版整帧资源：
 
-五个角色层和四个衬层都使用 `745 × 1205 RGBA` 同画布，关节坐标固定为：
+- `neutral_512.png`：默认自然站立锚点。
+- `idle/default`、`idle/red_scarf`、`idle/blue_cape`、`idle/round_glasses`、`idle/sailor_cap`：5 套完整待机序列，每套 7 帧。
+- `actions/01_jump` 至 `actions/32_sleepy`：32 套默认外观互动序列，每套 8 帧。
+- `manifest.json`：帧尺寸、数量、编号和端点约定。
+- `runtime_frames.zip`：Windows 嵌入资源与发布构建输入。
+- `continuity_baseline_preview.png`：连续性人工检查预览。
+- `source`：创作阶段的原始生成表与透明处理结果。
 
-| 关节 | 坐标 |
-| --- | --- |
-| 左肩 | `(136, 742)` |
-| 右肩 | `(484, 748)` |
-| 左腿 | `(199, 1044)` |
-| 右腿 | `(433, 1044)` |
+所有生产帧均为 512×512 RGBA，透明背景、统一画布、统一脚底基线。互动动作的第 1/8 帧与默认站立逐像素一致；待机序列的第 1/7 帧也逐像素一致。
 
-同画布设计保证任何时刻都只改变变换矩阵，不需要重新定位或缩放某个部件。身体核心最后覆盖手脚的
-内侧重叠区，避免肩部和腰部出现透明缝隙。
+## 换装约定
 
-## 重新生成骨骼层
+红围巾、蓝披风、圆眼镜和海军帽不是附件 PNG。每种外观都是从生成阶段开始绘入 Coco 的完整待机动画，所以不会漂浮、错位或与手臂分层。
 
-需要 Python、Pillow 和 NumPy：
+换装只影响待机。32 个互动动作始终播放默认 Coco，动作结束后再回到当前外观的待机首帧。
+
+## 图标
+
+Windows 使用 `assets/icon/CocoDesktopPet.ico`；macOS 使用 `assets/icon/CocoApp.icns`。图标与透明窗口动画资源相互独立。
+
+## 重新整理帧
+
+在项目根目录运行：
 
 ```powershell
-python .\tools\prepare_rig_assets.py
-python .\tools\test_original_rig.py
-python .\tools\render_rig_motion_preview.py
+py tools/prepare_frame_animation_v2.py
 ```
 
-依次检查 `assets/rig/original_rig_preview.png` 和 `dist/coherent-rig-preview.png`。不要仅看中立姿势；
-必须检查手臂和脚部在允许的最大角度下是否仍由身体覆盖接缝。
-
-## 验收规则
-
-- 中立合成与原图的像素差异必须低于测试阈值。
-- 每个骨骼层的画布、比例和坐标必须一致，不得单独拉伸。
-- 肩部和腰部不得出现矩形残片、三角碎片或突然长出的身体纹理。
-- 白色背景下检查最大关节角度，肩部和髋部不得漏出桌面色；衬层本身也不得形成圆形补丁。
-- 换装必须在骨骼绘制函数内合成，并随整体和头部变换移动。
-- `frame_animation` 中的独立姿势图不得重新接入生产渲染器。
-
-## 历史研究资源
-
-`assets/frame_animation`、`assets/poses`、`assets/idle` 和 `assets/sprite_sheets` 保存早期实验及回归依据。
-这些图片的角色轮廓、光照和注册点不完全一致，连续播放会闪烁，因此不参与发布包构建。
+脚本会清理旧输出、统一画布与透明度、复制精确端点、生成清单、预览和运行时 ZIP。创作分镜见 `docs/ANIMATION_V2_PLAN.md`。

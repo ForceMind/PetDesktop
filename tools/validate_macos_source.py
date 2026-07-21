@@ -79,45 +79,27 @@ def main() -> None:
         "English dialogue mode contains non-ASCII text"
     )
 
-    numeric_cases = {int(value) for value in re.findall(r"case (\d+):", source)}
-    assert numeric_cases == set(range(32)), "The macOS motion switch must cover actions 0...31"
     assert "updateContinuousGaze()" in source, "Missing continuous cursor tracking"
-    assert "drawRigCharacter(in: petRect" in source, "Missing skeletal rig renderer"
-    assert "rigPoseForAction" in source, "Missing per-action joint animation"
-    assert "drawAction(actionFramesA[index]" not in source, (
-        "Independent generated poses must not be blended in the live renderer"
-    )
-    assert "transform.scale(by: uniformScale)" in source, (
-        "Live macOS renderer must use one uniform scale for both axes"
-    )
-    assert "drawFrameTimeline()" not in source[source.index("override func draw"):source.index("private func drawIdleLayers")], (
-        "Live macOS renderer still switches independent generated pose frames"
-    )
-    assert "petHeight * 745 / 1205" in source, (
-        "Live macOS renderer must preserve the original Coco aspect ratio"
-    )
+    draw_block = source[source.index("override func draw"):source.index("private func drawIdleLayers")]
+    assert "currentWholeCharacterFrame()" in draw_block, "Live renderer does not select whole frames"
+    assert "image.draw(in: petRect" in draw_block, "Whole frame is not drawn directly"
+    assert "drawRigCharacter" not in draw_block, "Live renderer still assembles rig parts"
+    assert "transform.scale" not in draw_block, "Live renderer still stretches authored frames"
+    assert "let petWidth = petHeight" in source, "Square authored canvas is not preserved"
+    assert "frameIdleOutfits" in source, "Missing fully regenerated outfit idle sequences"
+    assert "frameActions" in source, "Missing authored action sequences"
 
-    rig_dir = ROOT / "assets" / "rig"
-    rig_names = [
-        "original_core", "original_arm_left", "original_arm_right",
-        "original_leg_left", "original_leg_right",
-        "original_socket_arm_left", "original_socket_arm_right",
-        "original_socket_leg_left", "original_socket_leg_right",
-        "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap", "app_icon",
-    ]
-    for name in rig_names:
-        assert (rig_dir / f"{name}.png").is_file(), f"Missing rig asset: {name}.png"
-
-    pose_dir = ROOT / "assets" / "poses"
-    frames_a = sorted(pose_dir.glob("action_[0-9][0-9].png"))
-    frames_b = sorted(pose_dir.glob("action_[0-9][0-9]_b.png"))
-    assert len(frames_a) == 32, f"Expected 32 A frames, found {len(frames_a)}"
-    assert len(frames_b) == 32, f"Expected 32 B frames, found {len(frames_b)}"
-    idle_dir = ROOT / "assets" / "idle"
-    follow_frames = sorted(idle_dir.glob("idle_follow_[0-9][0-9].png"))
-    life_frames = sorted(idle_dir.glob("idle_life_[0-9][0-9].png"))
-    assert len(follow_frames) == 8, f"Expected 8 follow frames, found {len(follow_frames)}"
-    assert len(life_frames) == 8, f"Expected 8 lively idle frames, found {len(life_frames)}"
+    frame_root = ROOT / "assets" / "frame_animation_v2"
+    assert (frame_root / "neutral_512.png").is_file(), "Missing neutral standing frame"
+    idle_names = ["default", "red_scarf", "blue_cape", "round_glasses", "sailor_cap"]
+    for name in idle_names:
+        frames = sorted((frame_root / "idle" / name).glob("frame_[0-9][0-9].png"))
+        assert len(frames) == 7, f"Expected seven {name} idle frames, found {len(frames)}"
+    action_dirs = sorted((frame_root / "actions").glob("[0-9][0-9]_*"))
+    assert len(action_dirs) == 32, f"Expected 32 action directories, found {len(action_dirs)}"
+    assert all(len(list(path.glob("frame_[0-9][0-9].png"))) == 8 for path in action_dirs), (
+        "A macOS action does not contain eight complete frames"
+    )
 
     with (ROOT / "macos" / "Info.plist").open("rb") as plist_file:
         plist = plistlib.load(plist_file)
@@ -126,11 +108,9 @@ def main() -> None:
     assert plist["LSUIElement"] is True
 
     print("macOS static validation passed")
-    print(f"Actions: {len(frames_a)} body-motion curves + 32 joint-motion curves")
-    print("Rig: original core + 4 limbs + 4 motion-only fabric joint sockets")
-    print("Outfits: default + scarf + cape + glasses + sailor cap")
-    print(f"Archived source poses: {len(frames_a) + len(frames_b)}")
-    print(f"Archived idle studies: {len(follow_frames) + len(life_frames)}")
+    print("Actions: 32 x 8 whole-character frames")
+    print("Renderer: direct square-frame drawing without rig or stretch")
+    print("Outfits: five regenerated idle frame sequences, no overlays")
     print("Dialogue: 32 Chinese + 32 pure-English action lines")
     print("Timeline: stable Coco -> continuous motion -> stable Coco")
 

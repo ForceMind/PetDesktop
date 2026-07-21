@@ -39,6 +39,7 @@ private final class PetView: NSView {
     // production draw path never reads these independent pose-frame arrays.
     private let frameBase: NSImage
     private let frameIdle: [NSImage]
+    private let frameIdleOutfits: [[NSImage]]
     private let frameActions: [[NSImage]]
     private let idleImage: NSImage
     private let idleFollowFrames: [NSImage]
@@ -123,29 +124,32 @@ private final class PetView: NSView {
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
-    init(frame: NSRect, idleImage: NSImage, idleFollow: [NSImage], idleLife: [NSImage],
-         framesA: [NSImage], framesB: [NSImage], rig: [NSImage]) {
+    init(frame: NSRect, idleImage: NSImage, idleOutfits: [[NSImage]],
+         actions: [[NSImage]]) {
         self.frameBase = idleImage
-        self.frameIdle = []
-        self.frameActions = []
+        self.frameIdle = idleOutfits[0]
+        self.frameIdleOutfits = idleOutfits
+        self.frameActions = actions
         self.idleImage = idleImage
-        self.idleFollowFrames = idleFollow
-        self.idleLifeFrames = idleLife
-        self.actionFramesA = framesA
-        self.actionFramesB = framesB
-        self.rigCore = rig[0]
-        self.rigArmLeft = rig[1]
-        self.rigArmRight = rig[2]
-        self.rigLegLeft = rig[3]
-        self.rigLegRight = rig[4]
-        self.rigSocketArmLeft = rig[5]
-        self.rigSocketArmRight = rig[6]
-        self.rigSocketLegLeft = rig[7]
-        self.rigSocketLegRight = rig[8]
-        self.outfitScarf = rig[9]
-        self.outfitCape = rig[10]
-        self.outfitGlasses = rig[11]
-        self.outfitCap = rig[12]
+        self.idleFollowFrames = []
+        self.idleLifeFrames = []
+        self.actionFramesA = []
+        self.actionFramesB = []
+        // Production startup no longer loads split limb or outfit assets.
+        // These values only satisfy unreachable legacy helper methods.
+        self.rigCore = idleImage
+        self.rigArmLeft = idleImage
+        self.rigArmRight = idleImage
+        self.rigLegLeft = idleImage
+        self.rigLegRight = idleImage
+        self.rigSocketArmLeft = idleImage
+        self.rigSocketArmRight = idleImage
+        self.rigSocketLegLeft = idleImage
+        self.rigSocketLegRight = idleImage
+        self.outfitScarf = idleImage
+        self.outfitCape = idleImage
+        self.outfitGlasses = idleImage
+        self.outfitCap = idleImage
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
@@ -233,27 +237,27 @@ private final class PetView: NSView {
         dirtyRect.fill()
 
         let petRect = petCanvasRect(for: speech)
-        let progress = actionIndex.map { actionProgress(for: $0) } ?? 0
-        let motion = actionIndex.map { motionForAction($0, progress: progress) } ?? idleMotion()
-        let uniformScale = min(1.14, max(0.76,
-            sqrt(max(0.01, abs(motion.scaleX * motion.scaleY)))))
-        let pose = actionIndex.map { rigPoseForAction($0, progress: progress) } ?? idleRigPose()
-        let trackingWeight = actionIndex == nil ? 1 : headTrackingWeight(progress)
-        guard let context = NSGraphicsContext.current else { return }
-        context.saveGraphicsState()
-        let transform = NSAffineTransform()
-        transform.translateX(by: petRect.midX + motion.dx,
-                             yBy: petRect.midY + motion.dy)
-        transform.rotate(byDegrees: motion.rotation)
-        transform.scale(by: uniformScale)
-        transform.concat()
-        drawRigCharacter(in: petRect, pose: pose,
-                         headTrackingWeight: trackingWeight)
-        context.restoreGraphicsState()
+        let image = currentWholeCharacterFrame()
+        image.draw(in: petRect, from: .zero, operation: .sourceOver,
+                   fraction: 1, respectFlipped: true, hints: nil)
 
         if let speech {
             drawSpeechBubble(speech)
         }
+    }
+
+    private func currentWholeCharacterFrame() -> NSImage {
+        if let index = actionIndex {
+            let sequence = frameActions[min(frameActions.count - 1, max(0, index))]
+            let position = Int(floor(actionProgress(for: index) * CGFloat(sequence.count)))
+            return sequence[min(sequence.count - 1, max(0, position))]
+        }
+
+        let outfitIndex = min(frameIdleOutfits.count - 1, max(0, outfit.rawValue))
+        let sequence = frameIdleOutfits[outfitIndex]
+        let elapsed = max(0, Date.timeIntervalSinceReferenceDate - idleStarted)
+        let position = Int(floor(elapsed / 0.115)) % sequence.count
+        return sequence[position]
     }
 
     private func drawIdleLayers(fraction: CGFloat) {
@@ -759,7 +763,7 @@ private final class PetView: NSView {
     }
 
     private func contentSize(for text: String?) -> NSSize {
-        let petWidth = petHeight * 745 / 1205
+        let petWidth = petHeight
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSSize(width: petWidth + padding * 2 + extraWidth,
@@ -768,7 +772,7 @@ private final class PetView: NSView {
 
     private func petCanvasRect(for text: String?) -> NSRect {
         let size = contentSize(for: text)
-        let petWidth = petHeight * 745 / 1205
+        let petWidth = petHeight
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSRect(x: padding + extraWidth,
@@ -1037,6 +1041,7 @@ private final class PetView: NSView {
               let selected = OutfitKind(rawValue: value.intValue) else { return }
         outfit = selected
         performLayoutChange {
+            idleStarted = Date.timeIntervalSinceReferenceDate
             speech = localized("新造型准备好啦！", "New outfit ready!")
         }
     }
@@ -1056,47 +1061,56 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
-        guard let resourceURL = Bundle.main.resourceURL,
-              let idleImage = NSImage(contentsOf: resourceURL.appendingPathComponent("coco.png")) else {
+        guard let resourceURL = Bundle.main.resourceURL else {
             showFatalError("无法读取 Coco 图片资源。\nUnable to load Coco image resources.")
             return
         }
+        let frameRoot = resourceURL.appendingPathComponent("frame_animation_v2", isDirectory: true)
+        guard let idleImage = NSImage(contentsOf:
+                frameRoot.appendingPathComponent("neutral_512.png")) else {
+            showFatalError("无法读取站立母版。\nUnable to load neutral standing frame.")
+            return
+        }
 
-        var framesA: [NSImage] = []
-        var framesB: [NSImage] = []
-        var idleFollow: [NSImage] = []
-        var idleLife: [NSImage] = []
-        if false {
-        for number in 1...32 {
-            let stem = String(format: "action_%02d", number)
-            guard let imageA = NSImage(contentsOf: resourceURL.appendingPathComponent("\(stem).png")),
-                  let imageB = NSImage(contentsOf: resourceURL.appendingPathComponent("\(stem)_b.png")) else {
-                showFatalError("动作资源不完整：\(stem)\nMissing action resource: \(stem)")
-                return
+        let idleNames = ["default", "red_scarf", "blue_cape", "round_glasses", "sailor_cap"]
+        var idleOutfits: [[NSImage]] = []
+        for name in idleNames {
+            var sequence: [NSImage] = []
+            for number in 1...7 {
+                let path = frameRoot.appendingPathComponent("idle/\(name)/" +
+                    String(format: "frame_%02d.png", number))
+                guard let image = NSImage(contentsOf: path) else {
+                    showFatalError("待机资源不完整：\(name)\nMissing idle frame: \(path.lastPathComponent)")
+                    return
+                }
+                sequence.append(image)
             }
-            framesA.append(imageA)
-            framesB.append(imageB)
+            idleOutfits.append(sequence)
         }
 
-        for number in 1...8 {
-            let suffix = String(format: "%02d", number)
-            guard let follow = NSImage(contentsOf: resourceURL.appendingPathComponent("idle_follow_\(suffix).png")),
-                  let life = NSImage(contentsOf: resourceURL.appendingPathComponent("idle_life_\(suffix).png")) else {
-                showFatalError("待机资源不完整：\(suffix)\nMissing idle resource: \(suffix)")
-                return
-            }
-            idleFollow.append(follow)
-            idleLife.append(life)
-        }
-
-        }
-        let rigNames = [
-            "original_core", "original_arm_left", "original_arm_right",
-            "original_leg_left", "original_leg_right",
-            "original_socket_arm_left", "original_socket_arm_right",
-            "original_socket_leg_left", "original_socket_leg_right",
-            "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap"
+        let actionNames = [
+            "01_jump", "02_squash", "03_shake", "04_bounce", "05_nod", "06_sway",
+            "07_spin", "08_reverse_spin", "09_hop_left", "10_hop_right", "11_tiptoe",
+            "12_stretch", "13_shrink", "14_peek_left", "15_peek_right", "16_figure_eight",
+            "17_tremble", "18_proud", "19_bow", "20_backflip", "21_frontflip", "22_dance",
+            "23_moonwalk", "24_heartbeat", "25_dizzy", "26_sneak", "27_charge", "28_float",
+            "29_stomp", "30_laugh", "31_surprise", "32_sleepy"
         ]
+        var actions: [[NSImage]] = []
+        for name in actionNames {
+            var sequence: [NSImage] = []
+            for number in 1...8 {
+                let path = frameRoot.appendingPathComponent("actions/\(name)/" +
+                    String(format: "frame_%02d.png", number))
+                guard let image = NSImage(contentsOf: path) else {
+                    showFatalError("动作资源不完整：\(name)\nMissing action frame: \(path.lastPathComponent)")
+                    return
+                }
+                sequence.append(image)
+            }
+            actions.append(sequence)
+        }
+        let rigNames: [String] = []
         var rig: [NSImage] = []
         for name in rigNames {
             guard let image = NSImage(contentsOf: resourceURL.appendingPathComponent("\(name).png")) else {
@@ -1107,8 +1121,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let view = PetView(frame: .zero, idleImage: idleImage,
-                           idleFollow: idleFollow, idleLife: idleLife,
-                           framesA: framesA, framesB: framesB, rig: rig)
+                           idleOutfits: idleOutfits, actions: actions)
         let size = view.preferredContentSize
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.borderless],

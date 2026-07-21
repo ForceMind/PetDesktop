@@ -8,98 +8,93 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 $assembly = [System.Reflection.Assembly]::LoadFile($exe)
 $type = $assembly.GetType('CocoDesktopPet.DesktopPetForm', $true)
-$instanceFlags = [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic
-$staticFlags = [System.Reflection.BindingFlags]::Static -bor [System.Reflection.BindingFlags]::NonPublic
+$flags = [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic
 $form = [System.Activator]::CreateInstance($type, $true)
 
-function Get-PoseValues($pose) {
-    @($pose.GetType().GetFields($instanceFlags) | ForEach-Object { [single]$_.GetValue($pose) })
-}
-
-function Get-MotionValues($method, $target) {
-    $arguments = [object[]]@([single]0, [single]0, [single]1, [single]1, [single]0)
-    $method.Invoke($target, $arguments) | Out-Null
-    @($arguments | ForEach-Object { [single]$_ })
+function Get-BitmapHash([System.Drawing.Bitmap]$bitmap) {
+    $stream = New-Object System.IO.MemoryStream
+    try {
+        $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Png)
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return ([BitConverter]::ToString($sha.ComputeHash($stream.ToArray()))).Replace('-', '')
+        }
+        finally { $sha.Dispose() }
+    }
+    finally { $stream.Dispose() }
 }
 
 try {
-    $interactionField = $type.GetField('interaction', $instanceFlags)
-    $startedField = $type.GetField('interactionStarted', $instanceFlags)
-    $actionFramesField = $type.GetField('actionFrameImages', $instanceFlags)
-    $petWidthField = $type.GetField('petWidth', $instanceFlags)
-    $petHeightField = $type.GetField('petHeight', $instanceFlags)
-    $poseMethod = $type.GetMethod('CalculateRigPose', $instanceFlags)
-    $motionMethod = $type.GetMethod('CalculateAnimation', $instanceFlags)
-    $durationMethod = $type.GetMethod('InteractionDuration', $staticFlags)
-    $enumType = $interactionField.FieldType
+    $actions = $type.GetField('actionFrameImages', $flags).GetValue($form)
+    $idles = $type.GetField('idleOutfitFrameImages', $flags).GetValue($form)
+    $neutral = $type.GetField('petImage', $flags).GetValue($form)
+    $petWidth = [int]$type.GetField('petWidth', $flags).GetValue($form)
+    $petHeight = [int]$type.GetField('petHeight', $flags).GetValue($form)
 
-    if ($null -ne $actionFramesField.GetValue($form)) {
-        throw 'Independent generated pose frames are still loaded by the live renderer.'
+    if ($null -eq $actions -or $actions.Length -ne 32) {
+        throw "Expected 32 authored action sequences, found $($actions.Length)."
     }
-    $ratio = [double]$petWidthField.GetValue($form) / [double]$petHeightField.GetValue($form)
-    if ([Math]::Abs($ratio - (745.0 / 1205.0)) -gt 0.005) {
-        throw 'The original Coco aspect ratio is not preserved.'
+    if ($null -eq $idles -or $idles.Length -ne 5) {
+        throw "Expected five regenerated outfit idle sequences, found $($idles.Length)."
     }
-    foreach ($fieldName in @('rigCore', 'rigArmLeft', 'rigArmRight', 'rigLegLeft',
-                              'rigLegRight', 'rigSocketArmLeft', 'rigSocketArmRight',
-                              'rigSocketLegLeft', 'rigSocketLegRight', 'outfitScarf', 'outfitCape',
-                              'outfitGlasses', 'outfitCap')) {
-        if ($null -eq $type.GetField($fieldName, $instanceFlags).GetValue($form)) {
-            throw "Live rig resource was not loaded: $fieldName"
+    if ($petWidth -ne $petHeight) {
+        throw "The square authored canvas is being stretched to ${petWidth}x${petHeight}."
+    }
+
+    $neutralHash = Get-BitmapHash $neutral
+    $middleHashes = [System.Collections.Generic.HashSet[string]]::new()
+    for ($action = 0; $action -lt $actions.Length; $action++) {
+        $sequence = $actions[$action]
+        if ($sequence.Length -ne 8) {
+            throw "Action $($action + 1) does not contain eight whole-character frames."
         }
-    }
-
-    $signatures = [System.Collections.Generic.HashSet[string]]::new()
-    $actionsWithJointMotion = 0
-    for ($action = 1; $action -le 32; $action++) {
-        $kind = [System.Enum]::ToObject($enumType, $action)
-        $interactionField.SetValue($form, $kind)
-        $duration = [double]$durationMethod.Invoke($null, @($kind))
-
-        $startedField.SetValue($form, [DateTime]::UtcNow.AddMilliseconds(100))
-        $startPose = Get-PoseValues ($poseMethod.Invoke($form, @()))
-        if (($startPose | Where-Object { [Math]::Abs($_) -gt 0.08 }).Count -gt 0) {
-            throw "Action $action does not start from the neutral idle rig."
-        }
-
-        $signatureValues = @()
-        $hasJointMotion = $false
-        foreach ($sampleProgress in @(0.25, 0.50, 0.75)) {
-            $startedField.SetValue($form,
-                [DateTime]::UtcNow.AddMilliseconds(-$duration * $sampleProgress))
-            $samplePose = Get-PoseValues ($poseMethod.Invoke($form, @()))
-            $sampleMotion = Get-MotionValues $motionMethod $form
-            if (($samplePose | Where-Object { [Math]::Abs($_) -gt 0.25 }).Count -gt 0) {
-                $hasJointMotion = $true
+        foreach ($frame in $sequence) {
+            if ($frame.Width -ne 512 -or $frame.Height -ne 512) {
+                throw "Action $($action + 1) contains a non-512 square frame."
             }
-            $signatureValues += @($samplePose + $sampleMotion |
-                ForEach-Object { [Math]::Round($_, 1) })
         }
-        if ($hasJointMotion) { $actionsWithJointMotion++ }
-        [void]$signatures.Add(($signatureValues -join ','))
-
-        $startedField.SetValue($form, [DateTime]::UtcNow.AddMilliseconds(-$duration - 100))
-        $endPose = Get-PoseValues ($poseMethod.Invoke($form, @()))
-        if (($endPose | Where-Object { [Math]::Abs($_) -gt 0.10 }).Count -gt 0) {
-            throw "Action $action does not return to the neutral idle rig."
+        if ((Get-BitmapHash $sequence[0]) -ne $neutralHash -or
+            (Get-BitmapHash $sequence[7]) -ne $neutralHash) {
+            throw "Action $($action + 1) does not use the exact neutral endpoint."
         }
+        [void]$middleHashes.Add((Get-BitmapHash $sequence[4]))
+    }
+    if ($middleHashes.Count -lt 30) {
+        throw "Only $($middleHashes.Count) distinct authored action poses were detected."
     }
 
-    if ($signatures.Count -lt 30) {
-        throw "Only $($signatures.Count) distinct action trajectories were detected."
+    $outfitNeutralHashes = [System.Collections.Generic.HashSet[string]]::new()
+    for ($outfit = 0; $outfit -lt $idles.Length; $outfit++) {
+        $sequence = $idles[$outfit]
+        if ($sequence.Length -ne 7) {
+            throw "Outfit $outfit does not contain seven complete idle frames."
+        }
+        if ((Get-BitmapHash $sequence[0]) -ne (Get-BitmapHash $sequence[6])) {
+            throw "Outfit $outfit idle loop does not close on its exact first frame."
+        }
+        [void]$outfitNeutralHashes.Add((Get-BitmapHash $sequence[0]))
     }
-    if ($actionsWithJointMotion -lt 30) {
-        throw "Only $actionsWithJointMotion actions visibly move a hand, foot, or head."
+    if ($outfitNeutralHashes.Count -ne 5) {
+        throw 'One or more outfits are still overlays instead of regenerated full frames.'
+    }
+
+    foreach ($fieldName in @('rigCore', 'rigArmLeft', 'rigArmRight', 'rigLegLeft',
+                              'rigLegRight', 'outfitScarf', 'outfitCape',
+                              'outfitGlasses', 'outfitCap')) {
+        if ($null -ne $type.GetField($fieldName, $flags).GetValue($form)) {
+            throw "Legacy layered renderer resource is still loaded: $fieldName"
+        }
     }
 
     [PSCustomObject]@{
         ActionsChecked = 32
-        DistinctTrajectories = $signatures.Count
-        ActionsWithJointMotion = $actionsWithJointMotion
-        SameRigAtEveryFrame = $true
-        NeutralStartAndEnd = $true
-        OutfitResourcesBoundToRig = $true
-        OriginalAspectRatio = $true
+        DistinctMiddlePoses = $middleHashes.Count
+        OutfitIdleSequences = 5
+        WholeCharacterFramesOnly = $true
+        ByteIdenticalActionEndpoints = $true
+        ByteIdenticalIdleLoopEndpoints = $true
+        SquareCanvasWithoutStretch = $true
+        LegacyRigNotLoaded = $true
         Passed = $true
     }
 }
