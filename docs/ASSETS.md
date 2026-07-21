@@ -1,90 +1,64 @@
-# 素材与原图约束
+# 素材与逐帧资源
 
-## 唯一角色母版
+## 角色参考
 
-`assets/coco.png` 是当前角色外观的唯一可信来源。以下内容属于项目硬性约束：
+`assets/coco.png` 是 Coco 的初始角色参考图。所有新帧必须保留其麻布质感、纽扣眼睛、蓝色羽冠、
+牙齿、腹部补丁、颜色与整体比例。逐帧姿势允许手脚、身体、表情和朝向真正变化。
 
-- 不重新生成、重新绘制或风格化角色本体。
-- 不把头部从身体上切开。
-- 不对单个角色部件做非等比缩放。
-- 四肢活动层中的可见 RGB 像素必须与 `coco.png` 对应位置一致。
-- 换装只能作为附加图层，不能替换 Coco 的脸、身体、手或脚。
+## 生产资源
 
-`tools/test_original_rig.py` 会验证这些原图像素约束。
+| 路径 | 数量 | 用途 |
+| --- | ---: | --- |
+| `assets/frame_animation/base.png` | 1 | 待机首帧，以及所有动作共同的第一/最后帧 |
+| `assets/frame_animation/idle/idle_*.png` | 8 | 呼吸、眨眼、手脚和表情变化的动态待机 |
+| `assets/frame_animation/actions/action_NN_FF.png` | 256 | 32 个动作，每个动作 8 张按时间排序的画面 |
+| `assets/frame_animation/manifest.json` | 1 | 画布、播放规则、动作名称和资源清单 |
+| `assets/frame_animation/frame_animation_preview.png` | 1 | 待机与 32 个动作的视觉总览 |
+| `assets/rig/outfit_*.png` | 4 | 围巾、披风、眼镜和帽子附件 |
+| `assets/coco.ico` | 1 | Windows 程序图标 |
+| `assets/rig/app_icon.png` | 1 | macOS 图标源 |
 
-## 当前运行时素材
+所有生产角色帧必须为 `512 × 512 RGBA`。角色在透明方形画布中移动、旋转或跳起，运行时只等比缩放
+整个画布，因此不同姿势不会改变窗口中的宽高比例。
 
-| 路径 | 用途 |
-| --- | --- |
-| `assets/coco.png` | 唯一原始角色图片 |
-| `assets/rig/original_core.png` | 完整头部、面部和身体核心层 |
-| `assets/rig/original_arm_left.png` | 原图左手臂活动层 |
-| `assets/rig/original_arm_right.png` | 原图右手臂活动层 |
-| `assets/rig/original_leg_left.png` | 原图左脚部活动层 |
-| `assets/rig/original_leg_right.png` | 原图右脚部活动层 |
-| `assets/rig/original_neutral.png` | 关节层静止重组结果 |
-| `assets/rig/original_rig_preview.png` | 原图、静止、手臂和踏步对照预览 |
-| `assets/rig/outfit_*.png` | 围巾、披风、眼镜和帽子附件 |
-| `assets/rig/app_icon.png` | macOS ICNS 和跨平台图标源 |
-| `assets/coco.ico` | Windows 多尺寸程序图标 |
+## 源表
 
-五个 `original_*` 角色层使用同一个 `745 × 1205` 透明画布和同一裁切原点。
-不要单独裁切、缩放或移动其中一张图片。
+`assets/frame_animation/source` 保存可复现素材：
 
-## 关节坐标
+- `idle_v2_green.png`：4 × 2 待机源表。
+- `actions_XX_YY_4f_green.png`：每组四个动作、每个动作四张主关键帧。
+- `inbetweens_XX_YY_green.png`：对应四个动作的四张中间帧。
 
-坐标相对于公共画布：
+动作最终交错为：
 
-| 关节 | X | Y |
-| --- | ---: | ---: |
-| 左手臂 | 136 | 742 |
-| 右手臂 | 484 | 748 |
-| 左脚部 | 199 | 1044 |
-| 右脚部 | 433 | 1044 |
-
-这些坐标同时存在于资源生成脚本、Windows 渲染器和 macOS 渲染器中。
-调整遮罩或公共裁切时，必须同步更新三个位置并重新运行测试。
-
-## 重新生成关节层和图标
-
-需要 Python 3 和 Pillow：
-
-```powershell
-python -m pip install Pillow
-python .\tools\prepare_rig_assets.py
-python .\tools\test_original_rig.py
+```text
+中间帧1, 主帧1, 中间帧2, 主帧2, 中间帧3, 主帧3, 中间帧4, 主帧4
 ```
 
-生成脚本会：
+这些源表使用纯绿色背景，不能被应用直接加载。
 
-1. 验证母版尺寸为 `1254 × 1254`。
-2. 在原图坐标中建立手臂和脚部遮罩。
-3. 清除穿过遮罩的细绳和头发碎片。
-4. 生成同画布核心层与四肢层。
-5. 重组静止姿势并检查与原图的差异比例。
-6. 生成关节预览、Windows ICO 和 macOS 图标源。
+## 重新生成透明帧
 
-生成后必须人工查看 `assets/rig/original_rig_preview.png`，重点检查肩部、脚部、
-头发边缘和透明背景是否有残留线条。
+需要 Python、Pillow、NumPy、SciPy，以及 imagegen 技能附带的抠图脚本：
 
-## 换装素材
+```powershell
+python .\tools\prepare_frame_animation.py
+python .\tools\test_frame_assets.py
+```
 
-换装附件允许使用独立图片，但必须满足：
+处理脚本会切分单元格、柔化绿幕边缘、去除绿色溢色、只保留与角色相连的最大主体、统一为
+512 × 512，并重新生成 `manifest.json` 和预览图。抖动线、星星等未连接小元素会被清除，
+以免透明桌面窗口出现漂浮碎片。
 
-- 背景透明。
-- 不永久覆盖或修改角色母版。
-- 披风绘制在身体后方；围巾、眼镜和帽子绘制在核心层前方。
-- Windows 与 macOS 使用相同的逻辑坐标和显示宽度。
+## 素材验收
 
-`assets/rig/outfits_sheet*.png` 是附件的组合源图；运行时使用拆分后的 `outfit_*.png`。
+- 每个动作必须有 8 个互不重复的文件哈希。
+- 32 条完整动作时间线必须互不重复。
+- 共同首尾帧必须是同一个 `base.png` 路径，而不是外观相近的再生成图片。
+- 每张图只能有一个完整 Coco，不得出现多余手脚、裁断身体或绿色边缘。
+- 必须查看 `frame_animation_preview.png`，并至少实机检查正反旋转、前后翻和大幅抬手动作。
 
-## 历史研究素材
+## 历史素材
 
-以下目录保留为早期美术与动作研究，不参与当前运行时构建：
-
-- `assets/poses`
-- `assets/idle`
-- `assets/sprite_sheets`
-- `assets/coco_chromakey.png`
-
-不要在实时渲染器中重新加载这些图片，否则会重新引入帧间换图、角色身份变化和闪烁。
+`assets/poses`、`assets/idle`、`assets/sprite_sheets` 和 `assets/rig/original_*` 是早期整帧或关节方案的
+研究资料，不参与当前角色本体渲染。不要把它们重新接入运行时。

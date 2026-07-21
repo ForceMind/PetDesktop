@@ -8,113 +8,84 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 $assembly = [System.Reflection.Assembly]::LoadFile($exe)
 $type = $assembly.GetType('CocoDesktopPet.DesktopPetForm', $true)
-$flags = [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic
+$instanceFlags = [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic
 $staticFlags = [System.Reflection.BindingFlags]::Static -bor [System.Reflection.BindingFlags]::NonPublic
 $form = [System.Activator]::CreateInstance($type, $true)
-$source = Get-Content -LiteralPath (Join-Path $projectDir 'DesktopPetForm.cs') -Raw -Encoding UTF8
-if ($source -notmatch 'scaleX\s*=\s*1F;\s*scaleY\s*=\s*1F;') {
-    throw 'Live renderer does not lock Coco to uniform original proportions.'
-}
 
 try {
-    $interactionField = $type.GetField('interaction', $flags)
-    $startedField = $type.GetField('interactionStarted', $flags)
-    $petXField = $type.GetField('petScreenX', $flags)
-    $petYField = $type.GetField('petScreenY', $flags)
-    $petWidthField = $type.GetField('petWidth', $flags)
-    $petHeightField = $type.GetField('petHeight', $flags)
-    $gazeXField = $type.GetField('gazeX', $flags)
-    $updateGaze = $type.GetMethod('UpdateContinuousGaze', $flags)
-    $calculate = $type.GetMethod('CalculateAnimation', $flags)
-    $calculateRig = $type.GetMethod('CalculateRigPose', $flags)
+    $interactionField = $type.GetField('interaction', $instanceFlags)
+    $startedField = $type.GetField('interactionStarted', $instanceFlags)
+    $idleStartedField = $type.GetField('idleStarted', $instanceFlags)
+    $baseField = $type.GetField('petImage', $instanceFlags)
+    $actionFramesField = $type.GetField('actionFrameImages', $instanceFlags)
+    $petWidthField = $type.GetField('petWidth', $instanceFlags)
+    $petHeightField = $type.GetField('petHeight', $instanceFlags)
+    $timelineMethod = $type.GetMethod('GetFrameTimeline', $instanceFlags)
     $durationMethod = $type.GetMethod('InteractionDuration', $staticFlags)
     $enumType = $interactionField.FieldType
+    $baseFrame = $baseField.GetValue($form)
+    $actionFrames = $actionFramesField.GetValue($form)
 
-    $petXField.SetValue($form, 600)
-    $petYField.SetValue($form, 350)
-    $centerX = 600 + [int]$petWidthField.GetValue($form) / 2
-    $centerY = 350 + [int]$petHeightField.GetValue($form) * 0.3
-
-    [System.Windows.Forms.Cursor]::Position = [System.Drawing.Point]::new($centerX + 700, $centerY)
-    1..40 | ForEach-Object { $updateGaze.Invoke($form, @()) }
-    $rightGaze = [double]$gazeXField.GetValue($form)
-    [System.Windows.Forms.Cursor]::Position = [System.Drawing.Point]::new($centerX - 700, $centerY)
-    1..80 | ForEach-Object { $updateGaze.Invoke($form, @()) }
-    $leftGaze = [double]$gazeXField.GetValue($form)
-    if ($rightGaze -le 0.8 -or $leftGaze -ge -0.8) {
-        throw "Cursor direction mapping failed: right=$rightGaze left=$leftGaze"
+    if ($petWidthField.GetValue($form) -ne $petHeightField.GetValue($form)) {
+        throw 'The square animation canvas is being stretched at runtime.'
     }
+    if ($actionFrames.Length -ne 32) { throw 'Runtime did not load 32 action timelines.' }
 
-    $maxStep = 0.0
-    $maxEndpointError = 0.0
-    $minimumJointTravel = [double]::PositiveInfinity
-    $maximumJointStep = 0.0
+    $sharedStarts = 0
+    $sharedEnds = 0
+    $authoredFramesVisited = 0
     for ($action = 1; $action -le 32; $action++) {
         $kind = [System.Enum]::ToObject($enumType, $action)
         $interactionField.SetValue($form, $kind)
         $duration = [double]$durationMethod.Invoke($null, @($kind))
-        $previous = $null
-        $previousJoints = $null
-        $jointTravel = 0.0
-        for ($frame = 0; $frame -le 100; $frame++) {
-            $progress = $frame / 100.0
-            $startedField.SetValue($form, [DateTime]::UtcNow.AddMilliseconds(-$duration * $progress))
-            $values = [object[]]@(
-                [single]0, [single]0, [single]0, [single]0, [single]0)
-            $calculate.Invoke($form, $values) | Out-Null
-            $current = @($values | ForEach-Object { [double]$_ })
-            if ($previous) {
-                $step = 0.0
-                for ($index = 0; $index -lt 5; $index++) {
-                    $step = [Math]::Max($step, [Math]::Abs($current[$index] - $previous[$index]))
-                }
-                $maxStep = [Math]::Max($maxStep, $step)
-            }
-            $previous = $current
 
-            $rigPose = $calculateRig.Invoke($form, @())
-            $rigFields = $rigPose.GetType().GetFields(
-                [System.Reflection.BindingFlags]::Instance -bor
-                [System.Reflection.BindingFlags]::NonPublic -bor
-                [System.Reflection.BindingFlags]::Public)
-            $joints = @($rigFields | ForEach-Object { [double]$_.GetValue($rigPose) })
-            for ($jointIndex = 0; $jointIndex -lt $joints.Count; $jointIndex++) {
-                $jointTravel = [Math]::Max($jointTravel, [Math]::Abs($joints[$jointIndex]))
-                if ($previousJoints) {
-                    $maximumJointStep = [Math]::Max($maximumJointStep,
-                        [Math]::Abs($joints[$jointIndex] - $previousJoints[$jointIndex]))
-                }
+        $startedField.SetValue($form, [DateTime]::UtcNow)
+        $startArgs = [object[]]@($null, $null, [single]0)
+        $timelineMethod.Invoke($form, $startArgs) | Out-Null
+        if (-not [object]::ReferenceEquals($startArgs[0], $baseFrame) -or
+            [single]$startArgs[2] -gt 0.01) {
+            throw "Action $action does not begin on the shared idle base frame."
+        }
+        $sharedStarts++
+
+        for ($frame = 1; $frame -le 8; $frame++) {
+            $progress = $frame / 9.0
+            $startedField.SetValue($form, [DateTime]::UtcNow.AddMilliseconds(-$duration * $progress))
+            $frameArgs = [object[]]@($null, $null, [single]0)
+            $timelineMethod.Invoke($form, $frameArgs) | Out-Null
+            $expected = $actionFrames[$action - 1][$frame - 1]
+            if (-not [object]::ReferenceEquals($frameArgs[0], $expected) -or
+                [single]$frameArgs[2] -gt 0.02) {
+                throw "Action $action did not visit authored keyframe $frame."
             }
-            $previousJoints = $joints
+            $authoredFramesVisited++
         }
 
-        $minimumJointTravel = [Math]::Min($minimumJointTravel, $jointTravel)
-
-        $rotation = (($previous[4] % 360.0) + 360.0) % 360.0
-        $rotationError = [Math]::Min($rotation, 360.0 - $rotation)
-        $endpointError = [Math]::Max(
-            [Math]::Max([Math]::Abs($previous[0]), [Math]::Abs($previous[1])),
-            [Math]::Max(
-                [Math]::Max([Math]::Abs($previous[2] - 1.0), [Math]::Abs($previous[3] - 1.0)),
-                $rotationError))
-        $maxEndpointError = [Math]::Max($maxEndpointError, $endpointError)
+        $startedField.SetValue($form, [DateTime]::UtcNow.AddMilliseconds(-$duration - 10))
+        $endArgs = [object[]]@($null, $null, [single]0)
+        $timelineMethod.Invoke($form, $endArgs) | Out-Null
+        if (-not [object]::ReferenceEquals($endArgs[0], $baseFrame) -or
+            [single]$endArgs[2] -gt 0.01) {
+            throw "Action $action does not end on the exact shared idle base frame."
+        }
+        $sharedEnds++
     }
 
-    if ($maxStep -gt 20.0) { throw "A frame-to-frame transform jump is too large: $maxStep" }
-    if ($maxEndpointError -gt 0.15) { throw "An action does not return to idle: $maxEndpointError" }
-    if ($minimumJointTravel -lt 1.5) { throw "An action barely moves any joint: $minimumJointTravel" }
-    if ($maximumJointStep -gt 20.0) { throw "A joint jumps too far between frames: $maximumJointStep" }
+    $interactionField.SetValue($form, [System.Enum]::ToObject($enumType, 0))
+    $idleStartedField.SetValue($form, [DateTime]::UtcNow)
+    $idleArgs = [object[]]@($null, $null, [single]0)
+    $timelineMethod.Invoke($form, $idleArgs) | Out-Null
+    if (-not [object]::ReferenceEquals($idleArgs[0], $baseFrame)) {
+        throw 'Idle does not start on the same shared base frame.'
+    }
 
     [PSCustomObject]@{
         ActionsChecked = 32
-        SamplesPerAction = 101
-        RightCursorProducesPositiveGaze = ($rightGaze -gt 0)
-        LeftCursorProducesNegativeGaze = ($leftGaze -lt 0)
-        MaximumFrameTransformStep = [Math]::Round($maxStep, 4)
-        MaximumIdleReturnError = [Math]::Round($maxEndpointError, 4)
-        MinimumPerActionJointTravel = [Math]::Round($minimumJointTravel, 4)
-        MaximumJointFrameStep = [Math]::Round($maximumJointStep, 4)
-        OriginalProportionsLocked = $true
+        AuthoredActionFramesVisited = $authoredFramesVisited
+        ActionsStartingOnSharedIdleFrame = $sharedStarts
+        ActionsEndingOnSharedIdleFrame = $sharedEnds
+        IdleStartsOnSharedFrame = $true
+        SquareCanvasNoStretch = $true
         Passed = $true
     }
 }

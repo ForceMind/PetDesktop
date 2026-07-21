@@ -41,26 +41,26 @@ xcrun --find swiftc
 
 ## Coco 被拉伸
 
-当前实时渲染器会把横纵缩放强制锁定为 `1`。若仍出现拉伸：
+当前角色帧使用 512 × 512 方形画布，目标显示区域也强制为正方形。若仍出现拉伸：
 
-- 确认使用的是 `v1.2.0` 或更高版本。
+- 确认使用的是 `v1.3.0` 或更高版本。
 - 不要混用旧版本 EXE 与新版本资源。
-- 从源码构建时先运行 `git status`，确认没有恢复旧 `head.png`、`torso.png` 等纸片人资源。
-- 运行 `tools/test_animation_continuity.ps1`，检查 `OriginalProportionsLocked` 是否为 `True`。
+- 从源码构建时确认 `build.ps1` 嵌入的是 `assets/frame_animation`。
+- 运行 `tools/test_animation_continuity.ps1`，检查 `SquareCanvasNoStretch` 是否为 `True`。
 
-## 四肢出现裂缝或碎线
+## 四肢出现多余贴图或绿色碎线
 
-1. 查看 `assets/rig/original_rig_preview.png`。
-2. 运行 `python tools/test_original_rig.py`。
-3. 检查公共画布和关节坐标是否与 [素材文档](ASSETS.md) 一致。
-4. 不要单独裁切某一个 `original_*` 文件。
-5. 降低关节角度时应同时修改 Windows 与 macOS 的限制器。
+1. 查看 `assets/frame_animation/frame_animation_preview.png`。
+2. 运行 `python tools/test_frame_assets.py`。
+3. 用 `tools/prepare_frame_animation.py` 重新执行绿幕去除和最大连通主体筛选。
+4. 检查对应 `source/inbetweens_*` 或 `source/actions_*` 单元格是否包含与身体相连的多余肢体。
 
 深色背景最容易暴露透明边缘问题，建议视觉验收时同时使用浅色和深色桌面。
 
 ## 角色闪烁
 
-- 确认没有把 `assets/poses` 或 `assets/idle` 的旧整帧图片重新接入实时渲染。
+- 确认没有把旧关节渲染器或 `assets/poses` 重新接入运行时。
+- 检查动作播放器是否显示单张实际帧；不要在大幅动作之间使用长时间 Alpha 交叉淡化，否则会产生双手重影。
 - Windows 渲染计时器应保持约 30 FPS，且只在边界变化时调整窗口尺寸。
 - 关闭可能持续捕获或重绘透明窗口的第三方桌面美化工具后再测试。
 - 更新显卡驱动，并检查远程桌面环境是否禁用了分层窗口加速。
@@ -73,8 +73,8 @@ xcrun --find swiftc
 .\tools\test_animation_continuity.ps1
 ```
 
-输出中的 `RightCursorProducesPositiveGaze` 和 `LeftCursorProducesNegativeGaze` 都应为 `True`。
-Windows 与 macOS 的屏幕 Y 轴方向不同，修改坐标换算时不要直接复制符号。
+把鼠标移到角色左右两边直接观察方向。Windows 与 macOS 的屏幕 Y 轴方向不同，
+修改坐标换算时不要直接复制符号；跟随只应影响待机的轻微朝向，不应旋转动作帧。
 
 ## 对话显示不完整
 

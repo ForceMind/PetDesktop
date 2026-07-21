@@ -150,8 +150,10 @@ namespace CocoDesktopPet
         private readonly ToolStripMenuItem[] outfitMenuItems;
 
         private Bitmap petImage;
-        private Bitmap[] actionImages;
-        private Bitmap[] actionImagesB;
+        private Bitmap[] idleFrameImages;
+        private Bitmap[][] actionFrameImages;
+        // Kept only for compatibility with the legacy helper methods below;
+        // the production renderer never populates or draws these arrays.
         private Bitmap[] idleFollowImages;
         private Bitmap[] idleLifeImages;
         private Bitmap lastFrame;
@@ -236,12 +238,11 @@ namespace CocoDesktopPet
                      ControlStyles.OptimizedDoubleBuffer, true);
 
             random = new Random();
-            petImage = LoadPetImage();
-            rigCore = LoadResourceBitmap("rig_original_core.png");
-            rigArmLeft = LoadResourceBitmap("rig_original_arm_left.png");
-            rigArmRight = LoadResourceBitmap("rig_original_arm_right.png");
-            rigLegLeft = LoadResourceBitmap("rig_original_leg_left.png");
-            rigLegRight = LoadResourceBitmap("rig_original_leg_right.png");
+            petImage = LoadResourceBitmap("frame_base.png");
+            idleFrameImages = LoadImageSequence("frame_idle", 8);
+            actionFrameImages = LoadFrameActions();
+            idleFollowImages = null;
+            idleLifeImages = null;
             outfitScarf = LoadResourceBitmap("rig_outfit_scarf.png");
             outfitCape = LoadResourceBitmap("rig_outfit_cape.png");
             outfitGlasses = LoadResourceBitmap("rig_outfit_glasses.png");
@@ -255,8 +256,7 @@ namespace CocoDesktopPet
             petScreenY = work.Bottom - petHeight - 24;
 
             animationTimer = new Timer();
-            // A stable 30 FPS cadence avoids layered-window churn and still
-            // gives smooth, continuous joint interpolation.
+            // The authored keyframes are interpolated at a stable 30 FPS.
             animationTimer.Interval = 33;
             animationTimer.Tick += AnimationTimerTick;
 
@@ -361,26 +361,16 @@ namespace CocoDesktopPet
                 petImage.Dispose();
                 petImage = null;
             }
-            if (actionImages != null)
+            DisposeImages(idleFrameImages);
+            idleFrameImages = null;
+            if (actionFrameImages != null)
             {
-                foreach (Bitmap image in actionImages)
+                foreach (Bitmap[] sequence in actionFrameImages)
                 {
-                    if (image != null) image.Dispose();
+                    DisposeImages(sequence);
                 }
-                actionImages = null;
+                actionFrameImages = null;
             }
-            if (actionImagesB != null)
-            {
-                foreach (Bitmap image in actionImagesB)
-                {
-                    if (image != null) image.Dispose();
-                }
-                actionImagesB = null;
-            }
-            DisposeImages(idleFollowImages);
-            idleFollowImages = null;
-            DisposeImages(idleLifeImages);
-            idleLifeImages = null;
             DisposeBitmap(ref rigCore);
             DisposeBitmap(ref rigArmLeft);
             DisposeBitmap(ref rigArmRight);
@@ -589,6 +579,22 @@ namespace CocoDesktopPet
             return images;
         }
 
+        private static Bitmap[][] LoadFrameActions()
+        {
+            Bitmap[][] actions = new Bitmap[InteractionOrder.Length][];
+            for (int actionIndex = 0; actionIndex < actions.Length; actionIndex++)
+            {
+                actions[actionIndex] = new Bitmap[8];
+                for (int frameIndex = 0; frameIndex < 8; frameIndex++)
+                {
+                    string resourceName = string.Format("frame_action_{0:D2}_{1:D2}.png",
+                        actionIndex + 1, frameIndex + 1);
+                    actions[actionIndex][frameIndex] = LoadResourceBitmap(resourceName);
+                }
+            }
+            return actions;
+        }
+
         private static void DisposeImages(Bitmap[] images)
         {
             if (images == null)
@@ -753,7 +759,9 @@ namespace CocoDesktopPet
         private void UpdatePetDimensions()
         {
             petHeight = Math.Max(120, (int)Math.Round(BasePetHeight * scaleFactor));
-            petWidth = Math.Max(80, (int)Math.Round(petHeight * (745.0 / 1205.0)));
+            // Production animation frames use a square transparent canvas.
+            // Keeping the destination square prevents pose-dependent stretching.
+            petWidth = petHeight;
         }
 
         private void UpdateSizeMenuChecks()
@@ -1006,6 +1014,9 @@ namespace CocoDesktopPet
                 (now - interactionStarted).TotalMilliseconds >= InteractionDuration(interaction))
             {
                 interaction = InteractionKind.None;
+                // The action's final bitmap and the idle timeline's first bitmap
+                // are the same petImage object. Restart from that exact frame.
+                idleStarted = now;
                 Text = "Coco 桌宠 - Idle";
                 nextIdleGestureAt = now.AddMilliseconds(700 + random.Next(900));
             }
@@ -1138,34 +1149,19 @@ namespace CocoDesktopPet
                 graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-                float offsetX;
-                float offsetY;
-                float scaleX;
-                float scaleY;
-                float rotation;
-                CalculateAnimation(out offsetX, out offsetY, out scaleX, out scaleY, out rotation);
-
-                // Never deform Coco's proportions.  Earlier builds animated by
-                // changing X/Y scale independently, which visibly stretched the
-                // source artwork and made its outline shimmer between frames.
-                scaleX = 1F;
-                scaleY = 1F;
-
                 GraphicsState state = graphics.Save();
-                float centerX = characterX + petWidth / 2F + offsetX;
-                bool rotateAroundCenter = interaction == InteractionKind.Backflip ||
-                    interaction == InteractionKind.Frontflip ||
-                    interaction == InteractionKind.ReverseSpin;
-                float pivotY = rotateAroundCenter
-                    ? characterY + petHeight / 2F + offsetY
-                    : characterY + petHeight + offsetY;
-                graphics.TranslateTransform(centerX, pivotY);
-                graphics.RotateTransform(rotation);
-                graphics.ScaleTransform(scaleX, scaleY);
+                float centerX = characterX + petWidth / 2F;
+                float centerY = characterY + petHeight / 2F;
+                graphics.TranslateTransform(centerX, centerY);
+                // Idle Coco subtly leans toward the pointer. Action artwork is
+                // left untouched so authored flips and poses are never doubled.
+                if (interaction == InteractionKind.None)
+                {
+                    graphics.RotateTransform((float)(gazeX * 1.8));
+                }
 
                 lastCharacterBounds = new Rectangle(characterX, characterY, petWidth, petHeight);
-                DrawRigCharacter(graphics, rotateAroundCenter, CalculateRigPose(),
-                    GetHeadTrackingWeight());
+                DrawFrameTimeline(graphics, petWidth);
                 graphics.Restore(state);
 
                 if (!string.IsNullOrEmpty(bubbleText))
@@ -1197,6 +1193,101 @@ namespace CocoDesktopPet
             {
                 oldFrame.Dispose();
             }
+        }
+
+        private void DrawFrameTimeline(Graphics graphics, int canvasSize)
+        {
+            Bitmap first;
+            Bitmap second;
+            float blend;
+            GetFrameTimeline(out first, out second, out blend);
+
+            if (outfit == OutfitKind.BlueCape)
+            {
+                DrawFrameAccessory(graphics, outfitCape, canvasSize,
+                    0.18F, 0.43F, 0.64F);
+            }
+
+            DrawSprite(graphics, first, canvasSize, canvasSize, true, 1F - blend);
+            DrawSprite(graphics, second, canvasSize, canvasSize, true, blend);
+
+            if (outfit == OutfitKind.RedScarf)
+            {
+                DrawFrameAccessory(graphics, outfitScarf, canvasSize,
+                    0.34F, 0.51F, 0.32F);
+            }
+            else if (outfit == OutfitKind.RoundGlasses)
+            {
+                DrawFrameAccessory(graphics, outfitGlasses, canvasSize,
+                    0.31F, 0.31F, 0.38F);
+            }
+            else if (outfit == OutfitKind.SailorCap)
+            {
+                DrawFrameAccessory(graphics, outfitCap, canvasSize,
+                    0.33F, 0.13F, 0.35F);
+            }
+        }
+
+        private void GetFrameTimeline(out Bitmap first, out Bitmap second, out float blend)
+        {
+            if (interaction == InteractionKind.None)
+            {
+                // Ten anchors: base, eight living idle poses, base. The loop
+                // therefore crosses the exact same shared frame at its seam.
+                double elapsed = Math.Max(0.0,
+                    (DateTime.UtcNow - idleStarted).TotalMilliseconds);
+                double position = (elapsed % 5200.0) / 5200.0 * 9.0;
+                int segment = Math.Min(8, (int)Math.Floor(position));
+                double local = position - segment;
+                first = GetIdleAnchor(segment);
+                second = GetIdleAnchor(segment + 1);
+                blend = (float)SmoothStep(local);
+                return;
+            }
+
+            // Ten actual animation frames per action: shared idle base, eight
+            // independently authored chronological poses, shared base again.
+            // Select a real frame rather than alpha-blending two poses; this
+            // prevents doubled hands/feet and the flicker caused by ghosting.
+            double actionPosition = GetInteractionProgress() * 9.0;
+            int actionFrame = Math.Min(9,
+                (int)Math.Floor(actionPosition + 0.5));
+            int actionIndex = Math.Max(0, Math.Min(actionFrameImages.Length - 1,
+                (int)interaction - 1));
+            first = GetActionAnchor(actionIndex, actionFrame);
+            second = first;
+            blend = 0F;
+        }
+
+        private Bitmap GetIdleAnchor(int anchor)
+        {
+            if (anchor <= 0 || anchor >= 9)
+            {
+                return petImage;
+            }
+            return idleFrameImages[anchor - 1];
+        }
+
+        private Bitmap GetActionAnchor(int actionIndex, int anchor)
+        {
+            if (anchor <= 0 || anchor >= 9)
+            {
+                return petImage;
+            }
+            return actionFrameImages[actionIndex][anchor - 1];
+        }
+
+        private static void DrawFrameAccessory(Graphics graphics, Bitmap image,
+            int canvasSize, float x, float y, float width)
+        {
+            float drawWidth = canvasSize * width;
+            float drawHeight = drawWidth * image.Height / image.Width;
+            RectangleF destination = new RectangleF(
+                -canvasSize / 2F + canvasSize * x,
+                -canvasSize / 2F + canvasSize * y,
+                drawWidth, drawHeight);
+            graphics.DrawImage(image, destination,
+                new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
         }
 
         private void DrawIdlePoseLayers(Graphics graphics, int canvasSize,

@@ -2,6 +2,7 @@ dist/
 dist-macos/
 tmp/
 .macos-build/
+assets/frame_animation/source/actions_*_v2_green.png
 *.pdb
 *.user
 *.suo

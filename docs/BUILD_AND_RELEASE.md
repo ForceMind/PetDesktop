@@ -14,7 +14,7 @@
 .\build.ps1 -Clean
 ```
 
-脚本会验证原图、关节层、服装附件和图标，随后把资源嵌入单个程序：
+脚本会验证共同基准帧、8 张待机帧、256 张动作帧、服装附件和图标，随后把资源嵌入单个程序：
 
 ```text
 dist\Coco桌宠.exe
@@ -46,7 +46,7 @@ dist-macos/Coco桌宠-macOS.zip
 脚本执行以下操作：
 
 1. 创建标准 App Bundle。
-2. 复制原图关节层和换装资源。
+2. 复制共同基准帧、待机帧、动作帧和换装资源。
 3. 从 `app_icon.png` 生成 `CocoApp.icns`。
 4. 分别尝试编译 `arm64` 和 `x86_64`。
 5. 在两个架构都成功时使用 `lipo` 生成通用二进制。
@@ -60,7 +60,7 @@ dist-macos/Coco桌宠-macOS.zip
 
 | 任务 | 主要工作 |
 | --- | --- |
-| Windows EXE | 构建单文件 EXE，运行冒烟、连续性、原图身份和点击区域测试 |
+| Windows EXE | 构建单文件 EXE，运行冒烟、共同首尾帧、256 张动作帧和点击区域测试 |
 | macOS App | 构建 App Bundle，检查通用二进制架构，上传 ZIP |
 | Publish tagged release | 下载两个平台产物并附加到标签 Release |
 
@@ -80,9 +80,8 @@ git status --short
 .\build.ps1 -Clean
 .\smoke_test.ps1
 .\tools\test_animation_continuity.ps1
-python .\tools\test_original_rig.py
+python .\tools\test_frame_assets.py
 .\tools\test_click_regions.ps1
-python .\tools\validate_macos_source.py
 ```
 
 更新 `CHANGELOG.md` 和 README 中的当前版本后提交：

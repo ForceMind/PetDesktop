@@ -6,8 +6,9 @@ $ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $distDir = Join-Path $projectDir 'dist'
 $assetPath = Join-Path $projectDir 'assets\coco.png'
-$poseDir = Join-Path $projectDir 'assets\poses'
-$idleDir = Join-Path $projectDir 'assets\idle'
+$frameDir = Join-Path $projectDir 'assets\frame_animation'
+$frameIdleDir = Join-Path $frameDir 'idle'
+$frameActionDir = Join-Path $frameDir 'actions'
 $rigDir = Join-Path $projectDir 'assets\rig'
 $iconPath = Join-Path $projectDir 'assets\coco.ico'
 $exeName = "Coco$([char]0x684c)$([char]0x5ba0).exe"
@@ -17,19 +18,14 @@ if (-not (Test-Path -LiteralPath $assetPath)) {
     throw "Missing character asset: $assetPath"
 }
 
-$allPoseFiles = @(Get-ChildItem -LiteralPath $poseDir -Filter 'action_*.png' -File)
-$poseFilesA = @($allPoseFiles | Where-Object { $_.Name -match '^action_[0-9]{2}\.png$' } | Sort-Object Name)
-$poseFilesB = @($allPoseFiles | Where-Object { $_.Name -match '^action_[0-9]{2}_b\.png$' } | Sort-Object Name)
-if ($poseFilesA.Count -ne 32 -or $poseFilesB.Count -ne 32) {
-    throw "Expected 32 A-frame and 32 B-frame sprites in $poseDir; found $($poseFilesA.Count) and $($poseFilesB.Count)."
-}
-
-$idleFollowFiles = @(Get-ChildItem -LiteralPath $idleDir -Filter 'idle_follow_*.png' -File |
-    Where-Object { $_.Name -match '^idle_follow_[0-9]{2}\.png$' } | Sort-Object Name)
-$idleLifeFiles = @(Get-ChildItem -LiteralPath $idleDir -Filter 'idle_life_*.png' -File |
-    Where-Object { $_.Name -match '^idle_life_[0-9]{2}\.png$' } | Sort-Object Name)
-if ($idleFollowFiles.Count -ne 8 -or $idleLifeFiles.Count -ne 8) {
-    throw "Expected 8 follow and 8 lively-idle sprites in $idleDir; found $($idleFollowFiles.Count) and $($idleLifeFiles.Count)."
+$baseFramePath = Join-Path $frameDir 'base.png'
+$idleFrameFiles = @(Get-ChildItem -LiteralPath $frameIdleDir -Filter 'idle_*.png' -File |
+    Where-Object { $_.Name -match '^idle_[0-9]{2}\.png$' } | Sort-Object Name)
+$actionFrameFiles = @(Get-ChildItem -LiteralPath $frameActionDir -Filter 'action_*.png' -File |
+    Where-Object { $_.Name -match '^action_[0-9]{2}_[0-9]{2}\.png$' } | Sort-Object Name)
+if (-not (Test-Path -LiteralPath $baseFramePath) -or $idleFrameFiles.Count -ne 8 -or
+    $actionFrameFiles.Count -ne 256) {
+    throw "Frame animation assets are incomplete: expected base + 8 idle + 256 action frames."
 }
 
 if ($Clean -and (Test-Path -LiteralPath $distDir)) {
@@ -88,11 +84,8 @@ $sourceFiles = @(
     (Join-Path $projectDir 'AssemblyInfo.cs')
 )
 
-$rigResourceNames = @(
-    'original_core.png', 'original_arm_left.png', 'original_arm_right.png',
-    'original_leg_left.png', 'original_leg_right.png', 'outfit_scarf.png',
-    'outfit_cape.png', 'outfit_glasses.png', 'outfit_cap.png'
-)
+$rigResourceNames = @('outfit_scarf.png', 'outfit_cape.png',
+    'outfit_glasses.png', 'outfit_cap.png')
 $rigResourceArgs = @()
 foreach ($rigName in $rigResourceNames) {
     $rigPath = Join-Path $rigDir $rigName
@@ -100,6 +93,14 @@ foreach ($rigName in $rigResourceNames) {
         throw "Missing rig resource: $rigPath"
     }
     $rigResourceArgs += "/resource:$rigPath,CocoDesktopPet.rig_$rigName"
+}
+
+$frameResourceArgs = @("/resource:$baseFramePath,CocoDesktopPet.frame_base.png")
+foreach ($idleFrame in $idleFrameFiles) {
+    $frameResourceArgs += "/resource:$($idleFrame.FullName),CocoDesktopPet.frame_$($idleFrame.Name)"
+}
+foreach ($actionFrame in $actionFrameFiles) {
+    $frameResourceArgs += "/resource:$($actionFrame.FullName),CocoDesktopPet.frame_$($actionFrame.Name)"
 }
 
 $compilerArgs = @(
@@ -115,7 +116,7 @@ $compilerArgs = @(
     '/reference:System.Core.dll',
     '/reference:System.Drawing.dll',
     '/reference:System.Windows.Forms.dll'
-) + $rigResourceArgs + $sourceFiles
+) + $rigResourceArgs + $frameResourceArgs + $sourceFiles
 
 & $compiler $compilerArgs
 if ($LASTEXITCODE -ne 0) {

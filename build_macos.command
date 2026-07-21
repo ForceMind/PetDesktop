@@ -21,6 +21,13 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
+cp "$SCRIPT_DIR/assets/frame_animation/base.png" "$RESOURCES_DIR/frame_base.png"
+for idle_frame in "$SCRIPT_DIR"/assets/frame_animation/idle/idle_*.png; do
+    cp "$idle_frame" "$RESOURCES_DIR/frame_$(basename "$idle_frame")"
+done
+for action_frame in "$SCRIPT_DIR"/assets/frame_animation/actions/action_*.png; do
+    cp "$action_frame" "$RESOURCES_DIR/frame_$(basename "$action_frame")"
+done
 for rig_asset in original_core original_arm_left original_arm_right original_leg_left original_leg_right outfit_scarf outfit_cape outfit_glasses outfit_cap; do
     cp "$SCRIPT_DIR/assets/rig/${rig_asset}.png" "$RESOURCES_DIR/${rig_asset}.png"
 done
