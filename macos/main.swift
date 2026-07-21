@@ -711,6 +711,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 let application = NSApplication.shared
-let applicationDelegate = AppDelegate()
+private let applicationDelegate = AppDelegate()
 application.delegate = applicationDelegate
 application.run()
