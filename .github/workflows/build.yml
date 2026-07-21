@@ -21,7 +21,7 @@ jobs:
         run: ./build.ps1 -Clean
       - name: Run smoke test
         shell: pwsh
-        run: ./smoke_test.ps1
+        run: ./smoke_test.ps1 -Headless
       - name: Verify gaze direction and animation continuity
         shell: pwsh
         run: ./tools/test_animation_continuity.ps1

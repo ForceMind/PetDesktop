@@ -1,5 +1,6 @@
 param(
-    [string]$DiagnosticFrame
+    [string]$DiagnosticFrame,
+    [switch]$Headless
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,6 +10,48 @@ if (-not $exe) { throw 'Build the application before running the smoke test.' }
 
 $processName = [System.IO.Path]::GetFileNameWithoutExtension($exe)
 Get-Process -Name $processName -ErrorAction SilentlyContinue | Stop-Process -Force
+
+if ($Headless) {
+    $headlessFrame = Join-Path $projectDir 'dist\ci-smoke-frame.png'
+    if (Test-Path -LiteralPath $headlessFrame) {
+        Remove-Item -LiteralPath $headlessFrame -Force
+    }
+    $env:COCO_PET_DIAGNOSTIC_FRAME = $headlessFrame
+    $env:COCO_PET_DIAGNOSTIC_OUTFIT = 'RedScarf'
+    $env:COCO_PET_DIAGNOSTIC_ACTION = 'Jump'
+    $env:COCO_PET_DIAGNOSTIC_EXIT = '1'
+    $headlessProcess = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+    try {
+        if (-not $headlessProcess.WaitForExit(20000)) {
+            throw 'The headless render did not exit within 20 seconds.'
+        }
+        if ($headlessProcess.ExitCode -ne 0) {
+            throw "The headless render exited with code $($headlessProcess.ExitCode)."
+        }
+        if (-not (Test-Path -LiteralPath $headlessFrame)) {
+            throw 'The headless render did not create a diagnostic frame.'
+        }
+        $frameInfo = Get-Item -LiteralPath $headlessFrame
+        [PSCustomObject]@{
+            HeadlessRender = $true
+            Action = 'Jump'
+            Outfit = 'RedScarf'
+            DiagnosticBytes = $frameInfo.Length
+            GracefulExit = $true
+        }
+    }
+    finally {
+        if (-not $headlessProcess.HasExited) {
+            Stop-Process -Id $headlessProcess.Id -Force
+        }
+        Remove-Item Env:COCO_PET_DIAGNOSTIC_FRAME -ErrorAction SilentlyContinue
+        Remove-Item Env:COCO_PET_DIAGNOSTIC_OUTFIT -ErrorAction SilentlyContinue
+        Remove-Item Env:COCO_PET_DIAGNOSTIC_ACTION -ErrorAction SilentlyContinue
+        Remove-Item Env:COCO_PET_DIAGNOSTIC_EXIT -ErrorAction SilentlyContinue
+    }
+    return
+}
+
 if ($DiagnosticFrame) {
     $env:COCO_PET_DIAGNOSTIC_FRAME = $DiagnosticFrame
 }

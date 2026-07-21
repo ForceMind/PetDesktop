@@ -3,6 +3,11 @@
 本文件记录面向用户的重要变更。版本发布包可在
 [GitHub Releases](https://github.com/ForceMind/PetDesktop/releases) 获取。
 
+## v1.4.1 - 2026-07-21
+
+- GitHub Windows Runner 改用离屏诊断模式验证启动、带换装动作渲染和正常退出，避免无交互桌面环境造成误报。
+- Windows 与 macOS 产品代码和 `v1.4.0` 的连续骨骼动画保持一致。
+
 ## v1.4.0 - 2026-07-21
 
 ### 连续动画修复
