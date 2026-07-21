@@ -22,12 +22,14 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
 
-for number in {01..32}; do
+for index in {1..32}; do
+    number="$(printf '%02d' "$index")"
     cp "$SCRIPT_DIR/assets/poses/action_${number}.png" "$RESOURCES_DIR/action_${number}.png"
     cp "$SCRIPT_DIR/assets/poses/action_${number}_b.png" "$RESOURCES_DIR/action_${number}_b.png"
 done
 
-for number in {01..08}; do
+for index in {1..8}; do
+    number="$(printf '%02d' "$index")"
     cp "$SCRIPT_DIR/assets/idle/idle_follow_${number}.png" "$RESOURCES_DIR/idle_follow_${number}.png"
     cp "$SCRIPT_DIR/assets/idle/idle_life_${number}.png" "$RESOURCES_DIR/idle_life_${number}.png"
 done
