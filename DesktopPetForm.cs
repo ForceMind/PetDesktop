@@ -154,6 +154,8 @@ namespace CocoDesktopPet
         private Point dragStartMouse;
         private Point dragStartPet;
         private bool diagnosticFrameSaved;
+        private double gazeX;
+        private double gazeY;
 
         private static readonly string[] CommonChineseLines =
         {
@@ -212,7 +214,7 @@ namespace CocoDesktopPet
             petScreenY = work.Bottom - petHeight - 24;
 
             animationTimer = new Timer();
-            animationTimer.Interval = 33;
+            animationTimer.Interval = 16;
             animationTimer.Tick += AnimationTimerTick;
 
             contextMenu = new ContextMenuStrip();
@@ -878,6 +880,7 @@ namespace CocoDesktopPet
         private void AnimationTimerTick(object sender, EventArgs e)
         {
             DateTime now = DateTime.UtcNow;
+            UpdateContinuousGaze();
             if (interaction != InteractionKind.None &&
                 (now - interactionStarted).TotalMilliseconds >= InteractionDuration(interaction))
             {
@@ -1033,29 +1036,17 @@ namespace CocoDesktopPet
                 graphics.RotateTransform(rotation);
                 graphics.ScaleTransform(scaleX, scaleY);
 
-                float poseOpacity = GetActionPoseOpacity();
                 int poseCanvasSize = (int)Math.Round(petHeight * 1.10);
                 lastCharacterBounds = new Rectangle(
                     (int)Math.Round(characterX + petWidth / 2F - poseCanvasSize / 2F),
                     characterY + petHeight - poseCanvasSize,
                     poseCanvasSize,
                     poseCanvasSize);
-                DrawIdlePoseLayers(graphics, poseCanvasSize, rotateAroundCenter,
-                    1F - poseOpacity);
-
-                int actionIndex = (int)interaction - 1;
-                if (poseOpacity > 0F && actionIndex >= 0 && actionImages != null &&
-                    actionIndex < actionImages.Length)
-                {
-                    float secondFrameOpacity = GetSecondKeyframeOpacity();
-                    DrawSprite(graphics, actionImages[actionIndex], poseCanvasSize, poseCanvasSize,
-                        rotateAroundCenter, poseOpacity * (1F - secondFrameOpacity));
-                    if (actionImagesB != null && actionIndex < actionImagesB.Length)
-                    {
-                        DrawSprite(graphics, actionImagesB[actionIndex], poseCanvasSize, poseCanvasSize,
-                            rotateAroundCenter, poseOpacity * secondFrameOpacity);
-                    }
-                }
+                Bitmap stableImage = idleFollowImages != null && idleFollowImages.Length > 0
+                    ? idleFollowImages[0]
+                    : petImage;
+                DrawContinuousCharacter(graphics, stableImage, poseCanvasSize,
+                    rotateAroundCenter, GetHeadTrackingWeight());
                 graphics.Restore(state);
 
                 if (!string.IsNullOrEmpty(bubbleText))
@@ -1143,11 +1134,77 @@ namespace CocoDesktopPet
             {
                 if (absX < 0.55 && absY < 0.30)
                 {
-                    return dx < 0 ? 6 : 7;
+                    return dx < 0 ? 7 : 6;
                 }
-                return dx < 0 ? 2 : 3;
+                return dx < 0 ? 3 : 2;
             }
             return dy < 0 ? 4 : 5;
+        }
+
+        private void UpdateContinuousGaze()
+        {
+            Point cursor = Cursor.Position;
+            double targetX = (cursor.X - (petScreenX + petWidth / 2.0)) /
+                Math.Max(1.0, petWidth * 0.72);
+            double targetY = (cursor.Y - (petScreenY + petHeight * 0.30)) /
+                Math.Max(1.0, petHeight * 0.72);
+            targetX = Math.Max(-1.0, Math.Min(1.0, targetX));
+            targetY = Math.Max(-1.0, Math.Min(1.0, targetY));
+
+            // Exponential smoothing prevents direction changes from snapping between sprites.
+            gazeX += (targetX - gazeX) * 0.18;
+            gazeY += (targetY - gazeY) * 0.18;
+        }
+
+        private float GetHeadTrackingWeight()
+        {
+            if (interaction == InteractionKind.None)
+            {
+                return 1F;
+            }
+
+            double t = GetInteractionProgress();
+            if (t < 0.18)
+            {
+                return (float)(1.0 - SmoothStep(t / 0.18));
+            }
+            if (t > 0.82)
+            {
+                return (float)SmoothStep((t - 0.82) / 0.18);
+            }
+            return 0F;
+        }
+
+        private void DrawContinuousCharacter(Graphics graphics, Bitmap image, int canvasSize,
+            bool centerPivot, float headTrackingWeight)
+        {
+            int left = -canvasSize / 2;
+            int top = centerPivot ? -canvasSize / 2 : -canvasSize;
+            int bodySourceY = (int)Math.Round(image.Height * 0.62);
+            int headSourceHeight = (int)Math.Round(image.Height * 0.74);
+            int bodyTop = top + (int)Math.Round(canvasSize * 0.62);
+            int headHeight = (int)Math.Round(canvasSize * 0.74);
+
+            Rectangle bodyDestination = new Rectangle(left, bodyTop, canvasSize,
+                canvasSize - (bodyTop - top));
+            Rectangle bodySource = new Rectangle(0, bodySourceY, image.Width,
+                image.Height - bodySourceY);
+            graphics.DrawImage(image, bodyDestination, bodySource, GraphicsUnit.Pixel);
+
+            GraphicsState headState = graphics.Save();
+            float neckY = top + canvasSize * 0.66F;
+            float lookX = (float)(gazeX * canvasSize * 0.018 * headTrackingWeight);
+            float lookY = (float)(gazeY * canvasSize * 0.010 * headTrackingWeight);
+            float lookRotation = (float)(gazeX * 3.2 * headTrackingWeight);
+            graphics.TranslateTransform(lookX, lookY);
+            graphics.TranslateTransform(0F, neckY);
+            graphics.RotateTransform(lookRotation);
+            graphics.TranslateTransform(0F, -neckY);
+
+            Rectangle headDestination = new Rectangle(left, top, canvasSize, headHeight);
+            Rectangle headSource = new Rectangle(0, 0, image.Width, headSourceHeight);
+            graphics.DrawImage(image, headDestination, headSource, GraphicsUnit.Pixel);
+            graphics.Restore(headState);
         }
 
         private float GetIdleGestureOpacity(out float secondFrameOpacity)
@@ -1292,6 +1349,34 @@ namespace CocoDesktopPet
                 scaleY = (float)(1.0 + breath * 0.012);
                 offsetY = (float)(-1.8 - breath * 1.8);
                 rotation = (float)(sway * 0.8);
+
+                if (idleGestureActive)
+                {
+                    double gestureT = Math.Max(0.0, Math.Min(1.0,
+                        (DateTime.UtcNow - idleGestureStarted).TotalMilliseconds / 1800.0));
+                    double envelope = Math.Sin(Math.PI * gestureT);
+                    switch (idleGesturePair)
+                    {
+                        case 0:
+                            rotation += (float)(Math.Sin(gestureT * Math.PI * 4.0) * 4.5 * envelope);
+                            offsetX += (float)(Math.Sin(gestureT * Math.PI * 4.0) * 4.0 * envelope);
+                            break;
+                        case 1:
+                            offsetY -= (float)(Math.Abs(Math.Sin(gestureT * Math.PI * 3.0)) * 7.0 * envelope);
+                            scaleY += (float)(0.035 * envelope);
+                            scaleX -= (float)(0.015 * envelope);
+                            break;
+                        case 2:
+                            scaleX += (float)(0.035 * envelope);
+                            scaleY -= (float)(0.025 * envelope);
+                            rotation += (float)(Math.Sin(gestureT * Math.PI * 2.0) * 2.5 * envelope);
+                            break;
+                        case 3:
+                            offsetX += (float)(Math.Sin(gestureT * Math.PI * 2.0) * 9.0 * envelope);
+                            rotation += (float)(Math.Sin(gestureT * Math.PI * 2.0) * 5.0 * envelope);
+                            break;
+                    }
+                }
                 return;
             }
 

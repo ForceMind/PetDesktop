@@ -81,8 +81,11 @@ def main() -> None:
 
     numeric_cases = {int(value) for value in re.findall(r"case (\d+):", source)}
     assert numeric_cases == set(range(32)), "The macOS motion switch must cover actions 0...31"
-    for marker in ("0.36", "0.48", "0.70", "0.82", "0.90"):
-        assert marker in source, f"Missing animation timeline marker {marker}"
+    assert "updateContinuousGaze()" in source, "Missing continuous cursor tracking"
+    assert "drawContinuousCharacter(stableImage" in source, "Missing stable continuous renderer"
+    assert "drawAction(actionFramesA[index]" not in source, (
+        "Independent generated poses must not be blended in the live renderer"
+    )
 
     pose_dir = ROOT / "assets" / "poses"
     frames_a = sorted(pose_dir.glob("action_[0-9][0-9].png"))
@@ -101,10 +104,11 @@ def main() -> None:
     assert plist["LSUIElement"] is True
 
     print("macOS static validation passed")
-    print(f"Actions: {len(frames_a)} | Action keyframes: {len(frames_a) + len(frames_b)}")
-    print(f"Idle keyframes: {len(follow_frames) + len(life_frames)}")
+    print(f"Actions: {len(frames_a)} procedural motion curves")
+    print(f"Archived source poses: {len(frames_a) + len(frames_b)}")
+    print(f"Archived idle studies: {len(follow_frames) + len(life_frames)}")
     print("Dialogue: 32 Chinese + 32 pure-English action lines")
-    print("Timeline: idle -> A -> B -> A -> idle")
+    print("Timeline: stable Coco -> continuous motion -> stable Coco")
 
 
 if __name__ == "__main__":

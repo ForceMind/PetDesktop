@@ -39,6 +39,8 @@ private final class PetView: NSView {
     private var nextIdleGestureAt = Date.timeIntervalSinceReferenceDate + 2.4
     private var idleGesturePair = 0
     private var idleGestureActive = false
+    private var gazeX: CGFloat = 0
+    private var gazeY: CGFloat = 0
 
     private let padding: CGFloat = 20
     private let bubbleGap: CGFloat = 14
@@ -123,6 +125,7 @@ private final class PetView: NSView {
 
     @objc private func animationTick() {
         let now = Date.timeIntervalSinceReferenceDate
+        updateContinuousGaze()
         if let index = actionIndex, actionProgress(for: index) >= 1 {
             performLayoutChange {
                 actionIndex = nil
@@ -180,15 +183,12 @@ private final class PetView: NSView {
         let petRect = petCanvasRect(for: speech)
         let progress: CGFloat
         let motion: PetMotion
-        let poseAlpha: CGFloat
         if let index = actionIndex {
             progress = actionProgress(for: index)
             motion = motionForAction(index, progress: progress)
-            poseAlpha = poseOpacity(progress)
         } else {
             progress = 0
             motion = idleMotion()
-            poseAlpha = 0
         }
 
         guard let context = NSGraphicsContext.current else { return }
@@ -199,12 +199,8 @@ private final class PetView: NSView {
         transform.scaleX(by: motion.scaleX, yBy: motion.scaleY)
         transform.concat()
 
-        drawIdleLayers(fraction: 1 - poseAlpha)
-        if let index = actionIndex, poseAlpha > 0 {
-            let secondAlpha = secondFrameOpacity(progress)
-            drawAction(actionFramesA[index], fraction: poseAlpha * (1 - secondAlpha))
-            drawAction(actionFramesB[index], fraction: poseAlpha * secondAlpha)
-        }
+        let stableImage = idleFollowFrames.first ?? idleImage
+        drawContinuousCharacter(stableImage, headTrackingWeight: headTrackingWeight(progress))
         context.restoreGraphicsState()
 
         if let speech {
@@ -262,10 +258,62 @@ private final class PetView: NSView {
             return blinkPhase < 0.17 ? 1 : 0
         }
         if absX > absY * 0.82 {
-            if absX < 0.55 && absY < 0.30 { return dx < 0 ? 6 : 7 }
-            return dx < 0 ? 2 : 3
+            if absX < 0.55 && absY < 0.30 { return dx < 0 ? 7 : 6 }
+            return dx < 0 ? 3 : 2
         }
         return dy > 0 ? 4 : 5
+    }
+
+    private func updateContinuousGaze() {
+        guard let window else { return }
+        let petRect = petCanvasRect(for: speech)
+        let headScreen = NSPoint(x: window.frame.minX + petRect.midX,
+                                 y: window.frame.maxY - (petRect.minY + petRect.height * 0.30))
+        let cursor = NSEvent.mouseLocation
+        let targetX = min(1, max(-1, (cursor.x - headScreen.x) / max(1, petRect.width * 0.72)))
+        let targetY = min(1, max(-1, (headScreen.y - cursor.y) / max(1, petRect.height * 0.72)))
+        gazeX += (targetX - gazeX) * 0.24
+        gazeY += (targetY - gazeY) * 0.24
+    }
+
+    private func headTrackingWeight(_ progress: CGFloat) -> CGFloat {
+        guard actionIndex != nil else { return 1 }
+        if progress < 0.18 { return 1 - smoothStep(progress / 0.18) }
+        if progress > 0.82 { return smoothStep((progress - 0.82) / 0.18) }
+        return 0
+    }
+
+    private func drawContinuousCharacter(_ image: NSImage, headTrackingWeight: CGFloat) {
+        let side = petHeight * 1.10
+        let left = -side / 2
+        let top = -side / 2
+        let bodyHeight = image.size.height * 0.38
+        let headHeight = image.size.height * 0.74
+
+        // NSImage source rectangles use bottom-left coordinates even in a flipped view.
+        let bodySource = NSRect(x: 0, y: 0,
+                                width: image.size.width, height: bodyHeight)
+        let bodyRect = NSRect(x: left, y: top + side * 0.62,
+                              width: side, height: side * 0.38)
+        image.draw(in: bodyRect, from: bodySource, operation: .sourceOver,
+                   fraction: 1, respectFlipped: true, hints: nil)
+
+        guard let context = NSGraphicsContext.current else { return }
+        context.saveGraphicsState()
+        let transform = NSAffineTransform()
+        let neckY = top + side * 0.66
+        transform.translateX(by: gazeX * side * 0.018 * headTrackingWeight,
+                             yBy: gazeY * side * 0.010 * headTrackingWeight)
+        transform.translateX(by: 0, yBy: neckY)
+        transform.rotate(byDegrees: gazeX * 3.2 * headTrackingWeight)
+        transform.translateX(by: 0, yBy: -neckY)
+        transform.concat()
+        let headSource = NSRect(x: 0, y: image.size.height - headHeight,
+                                width: image.size.width, height: headHeight)
+        let headRect = NSRect(x: left, y: top, width: side, height: side * 0.74)
+        image.draw(in: headRect, from: headSource, operation: .sourceOver,
+                   fraction: 1, respectFlipped: true, hints: nil)
+        context.restoreGraphicsState()
     }
 
     private func idleGestureOpacity() -> (opacity: CGFloat, secondFrame: CGFloat) {
@@ -290,10 +338,32 @@ private final class PetView: NSView {
         let seconds = Date.timeIntervalSinceReferenceDate - idleStarted
         let breath = CGFloat(sin(seconds * Double.pi * 2 / 2.8))
         let sway = CGFloat(sin(seconds * Double.pi * 2 / 6.4))
-        return PetMotion(dx: 0, dy: -1.8 - breath * 1.8,
-                         scaleX: 1 - breath * 0.006,
-                         scaleY: 1 + breath * 0.012,
-                         rotation: sway * 0.8)
+        var motion = PetMotion(dx: 0, dy: -1.8 - breath * 1.8,
+                               scaleX: 1 - breath * 0.006,
+                               scaleY: 1 + breath * 0.012,
+                               rotation: sway * 0.8)
+        if idleGestureActive {
+            let raw = (Date.timeIntervalSinceReferenceDate - idleGestureStarted) / 1.8
+            let t = CGFloat(min(1, max(0, raw)))
+            let envelope = sine(.pi * t)
+            switch idleGesturePair {
+            case 0:
+                motion.rotation += sine(t * .pi * 4) * 4.5 * envelope
+                motion.dx += sine(t * .pi * 4) * 4 * envelope
+            case 1:
+                motion.dy -= abs(sine(t * .pi * 3)) * 7 * envelope
+                motion.scaleY += 0.035 * envelope
+                motion.scaleX -= 0.015 * envelope
+            case 2:
+                motion.scaleX += 0.035 * envelope
+                motion.scaleY -= 0.025 * envelope
+                motion.rotation += sine(t * .pi * 2) * 2.5 * envelope
+            default:
+                motion.dx += sine(t * .pi * 2) * 9 * envelope
+                motion.rotation += sine(t * .pi * 2) * 5 * envelope
+            }
+        }
+        return motion
     }
 
     private func drawAction(_ image: NSImage, fraction: CGFloat) {
