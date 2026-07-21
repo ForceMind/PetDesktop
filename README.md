@@ -1,80 +1,100 @@
-# Coco 桌宠（Windows / macOS）
+# Coco 桌宠
 
-Coco 是一个透明、无边框、可拖动的分层骨骼桌面宠物。`assets/coco.png` 是唯一角色母版；头和身体保持为一个完整原图层，手臂与脚部从同一原图像素中无损提取，关节藏在身体覆盖区。32 种互动分别驱动身体轨迹与关节角度，以稳定的 30 FPS 实时生成画面，并平滑回到动态待机状态。
+[![Build Coco Desktop Pet](https://github.com/ForceMind/PetDesktop/actions/workflows/build.yml/badge.svg)](https://github.com/ForceMind/PetDesktop/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/ForceMind/PetDesktop)](https://github.com/ForceMind/PetDesktop/releases/latest)
 
-## 功能
+Coco 是一个面向 Windows 和 macOS 的透明桌面宠物。当前角色严格以
+[`assets/coco.png`](assets/coco.png) 为唯一母版：头和身体保持完整，手臂与脚部从同一张原图中提取，
+不再使用重新绘制的纸片人角色。
 
-- Coco 会按照全局鼠标坐标连续转向；头和身体始终为完整原图，不再使用会产生矩形接缝的头部裁片。
-- 待机时持续轻微呼吸，并随机播放挥手、踏步、双手伸展和全身摆动。
-- 左键拖动 Coco；点击头部、左右脸、左右手、身体或脚部会从各自的动作组中触发不同效果。
-- 鼠标滚轮连续调整大小；右键菜单也可选择预设大小。
-- 透明无边框窗口，默认始终置顶，可在右键菜单中关闭置顶。
-- 随机中文或英文对白；中文模式可偶尔混入简单 English，英文模式只显示纯英文。
-- 对话白气泡根据文字自动调整宽高，长句完整换行，且位于角色旁边、不遮挡角色。
-- Windows 版透明区域支持点击穿透。
-- Windows 和 macOS 版都包含大小、对白语言、置顶开关和退出菜单。
-- 右键“换装”菜单可切换默认、红围巾、蓝披风、圆眼镜和海军帽造型。
-- Windows EXE 与 macOS App 均带有 Coco 应用图标。
+![原图关节层预览](assets/rig/original_rig_preview.png)
 
-## 32 种动作
+## 下载
 
-跳跃、压扁回弹、左右抖动、连续弹跳、点头、摇摆、原地转身、反向旋转、向左跃、向右跃、踮脚、拉伸、缩小、左探头、右探头、八字移动、快速颤动、神气挺胸、鞠躬、惊喜探头、后空翻、前空翻、跳舞、太空步、心跳、眩晕、潜行、蓄力冲锋、漂浮、跺脚、大笑、困倦摇摆。
+推荐直接从 [Releases](https://github.com/ForceMind/PetDesktop/releases/latest) 下载：
 
-## Windows 版
+- Windows：下载 EXE 文件，双击即可运行，无需安装。
+- macOS：下载 macOS ZIP，解压后运行 `Coco桌宠.app`。
 
-直接双击：
+当前稳定版本为 `v1.2.0`。macOS 包使用本地临时签名；首次启动若被 Gatekeeper 阻止，
+请在 Finder 中右键应用并选择“打开”。
 
-```text
-dist\Coco桌宠.exe
-```
+## 主要功能
 
-重新构建（Windows PowerShell）：
+- 透明、无边框、默认始终置顶的桌宠窗口。
+- 左键拖动；滚轮连续缩放；透明区域在 Windows 上支持点击穿透。
+- 持续呼吸、轻摆、踏步和挥手等动态待机，不会静止成单张图片。
+- 根据鼠标的全局位置平滑转向，左右方向经过自动测试。
+- 点击头部、左右脸、左右手、身体和脚部会进入不同动作组。
+- 32 种连续动作均由身体轨迹和原图关节层实时插值，并在结束后回到待机状态。
+- 对话气泡根据中英文内容自动换行和调整尺寸，位于角色旁边且不遮挡角色。
+- 中文模式允许偶尔混入简单英文；英文模式只显示英文。
+- 默认、红围巾、蓝披风、圆眼镜、海军帽五种造型。
+- Windows 单文件 EXE 与 macOS 通用 App 都带有 Coco 原图头像图标。
+
+## 操作
+
+| 操作 | 效果 |
+| --- | --- |
+| 按住鼠标左键拖动 | 移动 Coco |
+| 单击角色 | 按点击部位随机触发动作与对白 |
+| 鼠标滚轮 | 连续调整角色大小 |
+| 鼠标右键 | 打开大小、语言、换装、置顶和退出菜单 |
+| 移动鼠标 | Coco 平滑朝鼠标方向转动 |
+
+点击区域与主要动作组：
+
+| 区域 | 动作示例 |
+| --- | --- |
+| 头部 | 点头、神气、惊喜、漂浮、困倦 |
+| 左脸 / 右脸 | 左右探头、摇摆、旋转、眩晕、大笑 |
+| 左手 / 右手 | 左右跳、鞠躬、跳舞、蓄力、八字移动 |
+| 身体 | 压扁回弹、心跳、颤动、潜行、拉伸 |
+| 脚部 | 跳跃、弹跳、跺脚、踮脚、前后空翻 |
+
+完整的 32 种动作包括：跳跃、压扁回弹、左右抖动、连续弹跳、点头、摇摆、原地转身、
+反向旋转、向左跃、向右跃、踮脚、拉伸、缩小、左探头、右探头、八字移动、快速颤动、
+神气挺胸、鞠躬、惊喜探头、后空翻、前空翻、跳舞、太空步、心跳、眩晕、潜行、蓄力冲锋、
+漂浮、跺脚、大笑和困倦摇摆。
+
+## 本地构建
+
+Windows PowerShell：
 
 ```powershell
 .\build.ps1 -Clean
-```
-
-自动冒烟测试：
-
-```powershell
 .\smoke_test.ps1
 ```
 
-Windows 构建使用系统自带的 .NET Framework 编译器，不需要 Visual Studio 或 .NET SDK。发布时只需分发单个 `Coco桌宠.exe`。
+输出文件为 `dist\Coco桌宠.exe`。Windows 构建使用系统 .NET Framework C# 编译器，
+不要求安装 Visual Studio 或 .NET SDK。
 
-## macOS 版
-
-macOS 版使用原生 AppKit。把整个 `CocoDesktopPet` 文件夹复制到 Mac 后，在终端运行：
+macOS 11 或更高版本，并已安装 Xcode：
 
 ```bash
-cd /你的路径/CocoDesktopPet
 chmod +x build_macos.command
 ./build_macos.command
 ```
 
-Mac 需要先安装 Xcode。脚本会构建并临时签名以下文件：
+输出文件为 `dist-macos/Coco桌宠.app` 和 `dist-macos/Coco桌宠-macOS.zip`。
+脚本会尽可能同时构建 Apple Silicon 与 Intel 架构，并生成通用二进制。
 
-```text
-dist-macos/Coco桌宠.app
-dist-macos/Coco桌宠-macOS.zip
-```
+## 文档
 
-之后可直接双击 `Coco桌宠.app`。因为它使用本地临时签名而非 Apple Developer ID，首次打开时若被 Gatekeeper 提示，请在 Finder 中右键 App 并选择“打开”。
+- [架构与动画设计](docs/ARCHITECTURE.md)
+- [素材与原图约束](docs/ASSETS.md)
+- [构建与 GitHub 发布](docs/BUILD_AND_RELEASE.md)
+- [测试与验收](docs/TESTING.md)
+- [故障排查](docs/TROUBLESHOOTING.md)
+- [版本变更记录](CHANGELOG.md)
 
-## 素材结构
+## 项目状态
 
-- `assets/coco.png`：唯一角色母版，实时角色层与程序图标均由它生成。
-- `assets/sprite_sheets`：早期动作造型原始表，仅作为美术参考保留，不参与实时动画。
-- `assets/poses`：早期透明姿势图，仅作为美术参考保留，不参与实时动画。
-- `assets/idle`：早期待机造型参考。
-- `assets/rig/original_*`：同画布、同尺寸的原图核心和四肢关节层；`original_rig_preview.png` 用于核对静止还原与动作连接。
-- `assets/rig/outfit_*`：只叠加在原角色上的四件服装附件，不替换角色本体。
-- `assets/coco.ico`：由 Coco 头像生成的多尺寸 Windows 程序图标。
-- `macos/main.swift`：原生 macOS 桌宠实现。
+- 当前发布：[`v1.2.0`](https://github.com/ForceMind/PetDesktop/releases/tag/v1.2.0)
+- Windows 与 macOS 由 GitHub Actions 自动构建。
+- `assets/poses`、`assets/idle` 和 `assets/sprite_sheets` 是早期美术研究资料，
+  不参与当前实时角色渲染。
 
-重新生成和验证原图关节层：
+## 许可证
 
-```powershell
-python .\tools\prepare_rig_assets.py
-python .\tools\test_original_rig.py
-```
+本项目使用 [Apache License 2.0](LICENSE)。角色图片与第三方素材的使用还应遵守其各自权利要求。
