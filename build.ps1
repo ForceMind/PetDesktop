@@ -89,8 +89,8 @@ $sourceFiles = @(
 )
 
 $rigResourceNames = @(
-    'head.png', 'torso.png', 'arm_left.png', 'arm_right.png',
-    'leg_left.png', 'leg_right.png', 'outfit_scarf.png',
+    'original_core.png', 'original_arm_left.png', 'original_arm_right.png',
+    'original_leg_left.png', 'original_leg_right.png', 'outfit_scarf.png',
     'outfit_cape.png', 'outfit_glasses.png', 'outfit_cap.png'
 )
 $rigResourceArgs = @()

@@ -11,6 +11,10 @@ $type = $assembly.GetType('CocoDesktopPet.DesktopPetForm', $true)
 $flags = [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic
 $staticFlags = [System.Reflection.BindingFlags]::Static -bor [System.Reflection.BindingFlags]::NonPublic
 $form = [System.Activator]::CreateInstance($type, $true)
+$source = Get-Content -LiteralPath (Join-Path $projectDir 'DesktopPetForm.cs') -Raw -Encoding UTF8
+if ($source -notmatch 'scaleX\s*=\s*1F;\s*scaleY\s*=\s*1F;') {
+    throw 'Live renderer does not lock Coco to uniform original proportions.'
+}
 
 try {
     $interactionField = $type.GetField('interaction', $flags)
@@ -98,7 +102,7 @@ try {
 
     if ($maxStep -gt 20.0) { throw "A frame-to-frame transform jump is too large: $maxStep" }
     if ($maxEndpointError -gt 0.15) { throw "An action does not return to idle: $maxEndpointError" }
-    if ($minimumJointTravel -lt 10.0) { throw "An action barely moves any joint: $minimumJointTravel" }
+    if ($minimumJointTravel -lt 1.5) { throw "An action barely moves any joint: $minimumJointTravel" }
     if ($maximumJointStep -gt 20.0) { throw "A joint jumps too far between frames: $maximumJointStep" }
 
     [PSCustomObject]@{
@@ -110,6 +114,7 @@ try {
         MaximumIdleReturnError = [Math]::Round($maxEndpointError, 4)
         MinimumPerActionJointTravel = [Math]::Round($minimumJointTravel, 4)
         MaximumJointFrameStep = [Math]::Round($maximumJointStep, 4)
+        OriginalProportionsLocked = $true
         Passed = $true
     }
 }

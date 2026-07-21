@@ -1,181 +1,260 @@
 #!/usr/bin/env python3
-"""Split the generated Coco paper-doll sheet and build application icons."""
+"""Build a lossless articulated rig directly from the original Coco artwork.
+
+The original image is the character master.  We never repaint the body.  Every
+rig layer uses pixels copied from coco.png and shares one canvas, so the neutral
+pose reconstructs the source without rescaling individual parts.  Limb masks
+extend underneath the torso; that overlap hides shoulder/hip joints in motion.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
+
 from collections import deque
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RIG_DIR = ROOT / "assets" / "rig"
-SHEET = RIG_DIR / "coco_rig_sheet.png"
-OUTFIT_SHEET = RIG_DIR / "outfits_sheet.png"
+ASSET_DIR = ROOT / "assets"
+RIG_DIR = ASSET_DIR / "rig"
+SOURCE_PATH = ASSET_DIR / "coco.png"
 
-REGIONS = {
-    "head": (0, 0, 560, 520),
-    "torso": (520, 0, 1040, 520),
-    "arm_right": (1040, 0, 1536, 520),
-    "arm_left": (0, 512, 560, 1024),
-    "leg_left": (520, 512, 1024, 1024),
-    "leg_right": (1024, 512, 1536, 1024),
+# A single common crop is used by every layer.  It preserves the source aspect
+# ratio and prevents the renderer from stretching one part independently.
+CROP = (306, 4, 1051, 1209)  # width 745, height 1205
+
+# Polygons are in the source image's 1254x1254 coordinate space.  Part masks
+# include generous material below the body.  Cut masks are smaller so the core
+# overlaps each joint and no transparent crack can appear while it rotates.
+PART_POLYGONS = {
+    "arm_left": [
+        (406, 718), (463, 711), (474, 763), (449, 852), (432, 955),
+        (421, 1011), (359, 1014), (325, 976), (326, 906), (354, 810),
+    ],
+    "arm_right": [
+        (769, 716), (810, 697), (846, 671), (881, 620), (927, 582),
+        (976, 560), (1019, 579), (1041, 608), (1021, 668), (956, 701),
+        (902, 716), (854, 771), (801, 815), (771, 794),
+    ],
+    "leg_left": [
+        (397, 1018), (612, 1018), (628, 1050), (614, 1124), (584, 1198),
+        (433, 1202), (399, 1142),
+    ],
+    "leg_right": [
+        (630, 1018), (849, 1018), (861, 1125), (826, 1201), (668, 1201),
+        (630, 1127),
+    ],
 }
 
-OUTFIT_REGIONS = {
-    "outfit_scarf": (0, 0, 627, 627),
-    "outfit_cape": (627, 0, 1254, 627),
-    "outfit_glasses": (0, 627, 627, 1254),
-    "outfit_cap": (627, 627, 1254, 1254),
+# Only these small joint caps remain in the core.  Everywhere else the limb is
+# removed from the core completely, preventing translucent outline pixels from
+# being drawn twice (the cause of the visible loop/flicker in the old build).
+JOINT_OVERLAP_POLYGONS = {
+    "arm_left": [(407, 730), (452, 720), (452, 775), (408, 806), (397, 763)],
+    "arm_right": [(764, 724), (811, 710), (817, 766), (795, 804), (768, 789)],
+    "leg_left": [(412, 1032), (605, 1032), (605, 1060), (414, 1066)],
+    "leg_right": [(638, 1032), (838, 1032), (838, 1066), (640, 1060)],
+}
+
+# Rotation pivots, converted to the common cropped canvas below.
+SOURCE_PIVOTS = {
+    "arm_left": (442, 746),
+    "arm_right": (790, 752),
+    "leg_left": (505, 1048),
+    "leg_right": (739, 1048),
+}
+
+PART_SEEDS = {
+    "arm_left": (380, 930),
+    "arm_right": (992, 620),
+    "leg_left": (500, 1150),
+    "leg_right": (744, 1150),
 }
 
 
-def keep_largest_component(piece: Image.Image) -> Image.Image:
-    alpha = piece.getchannel("A")
-    width, height = piece.size
-    visible = alpha.load()
+def polygon_mask(size: tuple[int, int], points: list[tuple[int, int]]) -> Image.Image:
+    mask = Image.new("L", size, 0)
+    ImageDraw.Draw(mask).polygon(points, fill=255)
+    return mask
+
+
+def connected_part_mask(source: Image.Image, polygon: Image.Image,
+                        seed: tuple[int, int]) -> Image.Image:
+    """Discard tassels and cords that merely cross a limb's polygon."""
+    alpha = source.getchannel("A")
+    alpha_pixels = alpha.load()
+    polygon_pixels = polygon.load()
+    width, height = source.size
+    seed_x, seed_y = seed
+    if alpha_pixels[seed_x, seed_y] <= 8 or polygon_pixels[seed_x, seed_y] == 0:
+        raise RuntimeError(f"Part seed {seed} is not on visible source artwork")
     visited = bytearray(width * height)
-    largest: list[int] = []
-
-    for y in range(height):
-        for x in range(width):
-            start = y * width + x
-            if visited[start] or visible[x, y] <= 8:
+    queue = deque([seed])
+    visited[seed_y * width + seed_x] = 1
+    while queue:
+        x, y = queue.popleft()
+        for next_x, next_y in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if not (0 <= next_x < width and 0 <= next_y < height):
                 continue
-            visited[start] = 1
-            queue = deque([(x, y)])
-            component: list[int] = []
-            while queue:
-                current_x, current_y = queue.popleft()
-                component.append(current_y * width + current_x)
-                for next_x, next_y in ((current_x - 1, current_y),
-                                       (current_x + 1, current_y),
-                                       (current_x, current_y - 1),
-                                       (current_x, current_y + 1)):
-                    if not (0 <= next_x < width and 0 <= next_y < height):
-                        continue
-                    index = next_y * width + next_x
-                    if visited[index] or visible[next_x, next_y] <= 8:
-                        continue
-                    visited[index] = 1
-                    queue.append((next_x, next_y))
-            if len(component) > len(largest):
-                largest = component
-
-    keep = set(largest)
-    cleaned = piece.copy()
-    pixels = cleaned.load()
-    for y in range(height):
-        for x in range(width):
-            if y * width + x not in keep:
-                red, green, blue, _ = pixels[x, y]
-                pixels[x, y] = red, green, blue, 0
-    return cleaned
+            index = next_y * width + next_x
+            if visited[index] or polygon_pixels[next_x, next_y] == 0:
+                continue
+            if alpha_pixels[next_x, next_y] <= 8:
+                continue
+            visited[index] = 1
+            queue.append((next_x, next_y))
+    connected = Image.new("L", source.size, 0)
+    connected_pixels = connected.load()
+    for index, value in enumerate(visited):
+        if value:
+            connected_pixels[index % width, index // width] = 255
+    # Remove very thin crossing cords/tassels that are connected to the body but
+    # are not part of the limb, then restore the antialiased outer fringe.
+    connected = connected.filter(ImageFilter.MinFilter(7)).filter(ImageFilter.MaxFilter(7))
+    connected = connected.filter(ImageFilter.MaxFilter(3))
+    return ImageChops.multiply(connected, polygon)
 
 
-def trim_region(sheet: Image.Image, region: tuple[int, int, int, int]) -> Image.Image:
-    piece = sheet.crop(region)
-    piece = keep_largest_component(piece)
-    alpha_box = piece.getchannel("A").getbbox()
-    if alpha_box is None:
-        raise RuntimeError(f"No visible pixels in region {region}")
-    left, top, right, bottom = alpha_box
-    padding = 8
-    left = max(0, left - padding)
-    top = max(0, top - padding)
-    right = min(piece.width, right + padding)
-    bottom = min(piece.height, bottom + padding)
-    return piece.crop((left, top, right, bottom))
+def layer_from_mask(source: Image.Image, mask: Image.Image) -> Image.Image:
+    layer = source.copy()
+    layer.putalpha(ImageChops.multiply(source.getchannel("A"), mask))
+    # Clear hidden RGB data as well; otherwise transparent layers compress very
+    # poorly and make the executable unnecessarily large.
+    clean = Image.new("RGBA", source.size, (0, 0, 0, 0))
+    clean.alpha_composite(layer)
+    return clean
 
 
-def build_icon(head: Image.Image) -> Image.Image:
+def build_icon(source: Image.Image) -> Image.Image:
+    # Crop the complete original face and feather crown.  The limb-free core is
+    # passed here so the source's raised hand cannot intrude into the icon.
+    portrait = source.crop((320, 16, 934, 760))
+    portrait_mask = Image.new("L", portrait.size, 0)
+    mask_draw = ImageDraw.Draw(portrait_mask)
+    mask_draw.rectangle((0, 0, portrait.width, 390), fill=255)
+    mask_draw.ellipse((4, 245, portrait.width - 4, 735), fill=255)
+    portrait.putalpha(ImageChops.multiply(portrait.getchannel("A"), portrait_mask))
     icon = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
     draw = ImageDraw.Draw(icon)
-    draw.ellipse((32, 32, 992, 992), fill=(15, 57, 89, 255),
-                 outline=(243, 170, 31, 255), width=30)
-    scale = min(860 / head.width, 820 / head.height)
-    resized = head.resize(
-        (round(head.width * scale), round(head.height * scale)), Image.Resampling.LANCZOS)
-    x = (1024 - resized.width) // 2
-    y = (1024 - resized.height) // 2 + 25
-    icon.alpha_composite(resized, (x, y))
+    draw.ellipse((28, 28, 996, 996), fill=(15, 57, 89, 255),
+                 outline=(243, 170, 31, 255), width=28)
+    scale = min(890 / portrait.width, 890 / portrait.height)
+    resized = portrait.resize((round(portrait.width * scale),
+                               round(portrait.height * scale)),
+                              Image.Resampling.LANCZOS)
+    icon.alpha_composite(resized, ((1024 - resized.width) // 2,
+                                   (1024 - resized.height) // 2 + 26))
     return icon
 
 
-def paste_at_pivot(canvas: Image.Image, piece: Image.Image,
-                   target: tuple[int, int], pivot: tuple[int, int], angle: float = 0) -> None:
-    layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    origin = (target[0] - pivot[0], target[1] - pivot[1])
-    layer.alpha_composite(piece, origin)
-    if angle:
-        layer = layer.rotate(angle, resample=Image.Resampling.BICUBIC,
-                             center=target)
-    canvas.alpha_composite(layer)
+def rotate_layer(layer: Image.Image, pivot: tuple[int, int], angle: float,
+                 dx: float = 0, dy: float = 0) -> Image.Image:
+    transformed = layer.rotate(angle, resample=Image.Resampling.BICUBIC,
+                               center=pivot)
+    if dx or dy:
+        shifted = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+        shifted.alpha_composite(transformed, (round(dx), round(dy)))
+        return shifted
+    return transformed
 
 
-def fitted(piece: Image.Image, width: int) -> Image.Image:
-    scale = width / piece.width
-    return piece.resize((width, round(piece.height * scale)), Image.Resampling.LANCZOS)
-
-
-def render_preview(pieces: dict[str, Image.Image], outfits: dict[str, Image.Image],
-                   outfit: str | None = None) -> Image.Image:
-    canvas = Image.new("RGBA", (800, 1200), (0, 0, 0, 0))
-    if outfit == "outfit_cape":
-        cape = fitted(outfits[outfit], 500)
-        canvas.alpha_composite(cape, ((800 - cape.width) // 2, 500))
-
-    paste_at_pivot(canvas, pieces["leg_left"], (320, 800), (91, 15), -2)
-    paste_at_pivot(canvas, pieces["leg_right"], (480, 800), (90, 15), 2)
-    paste_at_pivot(canvas, pieces["arm_left"], (215, 555), (150, 15), -2)
-    paste_at_pivot(canvas, pieces["arm_right"], (585, 555), (40, 15), 2)
-    canvas.alpha_composite(pieces["torso"], (193, 500))
-    paste_at_pivot(canvas, pieces["head"], (400, 535), (215, 480))
-
-    if outfit == "outfit_scarf":
-        scarf = fitted(outfits[outfit], 390)
-        canvas.alpha_composite(scarf, ((800 - scarf.width) // 2, 455))
-    elif outfit == "outfit_glasses":
-        glasses = fitted(outfits[outfit], 310)
-        canvas.alpha_composite(glasses, ((800 - glasses.width) // 2, 330))
-    elif outfit == "outfit_cap":
-        cap = fitted(outfits[outfit], 350)
-        canvas.alpha_composite(cap, ((800 - cap.width) // 2 + 35, 145))
+def compose(core: Image.Image, parts: dict[str, Image.Image],
+            angles: dict[str, float] | None = None,
+            offsets: dict[str, tuple[float, float]] | None = None) -> Image.Image:
+    angles = angles or {}
+    offsets = offsets or {}
+    canvas = Image.new("RGBA", core.size, (0, 0, 0, 0))
+    # Legs and arms live behind the intact head/torso core.
+    for name in ("leg_left", "leg_right", "arm_left", "arm_right"):
+        dx, dy = offsets.get(name, (0, 0))
+        canvas.alpha_composite(rotate_layer(parts[name], SOURCE_PIVOTS[name],
+                                            angles.get(name, 0), dx, dy))
+    canvas.alpha_composite(core)
     return canvas
 
 
+def make_preview(original_crop: Image.Image, neutral: Image.Image,
+                 parts: dict[str, Image.Image], core: Image.Image) -> Image.Image:
+    poses = [
+        original_crop,
+        neutral,
+        compose(core, parts, {"arm_left": 14, "arm_right": -12,
+                              "leg_left": -3, "leg_right": 4}),
+        compose(core, parts, {"arm_left": -10, "arm_right": 10,
+                              "leg_left": 5, "leg_right": -4},
+                {"leg_left": (-4, -9), "leg_right": (4, 2)}),
+    ]
+    labels = ["ORIGINAL", "NEUTRAL", "ARM MOTION", "STEP MOTION"]
+    panel_width, panel_height = 420, 700
+    preview = Image.new("RGBA", (panel_width * 4, panel_height), (24, 31, 38, 255))
+    draw = ImageDraw.Draw(preview)
+    for index, (pose, label) in enumerate(zip(poses, labels)):
+        shown = pose.copy()
+        shown.thumbnail((390, 640), Image.Resampling.LANCZOS)
+        x = index * panel_width + (panel_width - shown.width) // 2
+        y = 45 + (640 - shown.height) // 2
+        preview.alpha_composite(shown, (x, y))
+        draw.text((index * panel_width + 16, 14), label, fill=(255, 255, 255, 255))
+    return preview
+
+
 def main() -> None:
-    sheet = Image.open(SHEET).convert("RGBA")
-    pieces: dict[str, Image.Image] = {}
-    for name, region in REGIONS.items():
-        piece = trim_region(sheet, region)
-        piece.save(RIG_DIR / f"{name}.png", optimize=True)
-        pieces[name] = piece
-        print(f"{name}: {piece.width}x{piece.height}")
+    RIG_DIR.mkdir(parents=True, exist_ok=True)
+    source = Image.open(SOURCE_PATH).convert("RGBA")
+    if source.size != (1254, 1254):
+        raise RuntimeError(f"Unexpected source size {source.size}; masks target 1254x1254")
 
-    outfit_sheet = Image.open(OUTFIT_SHEET).convert("RGBA")
-    outfits: dict[str, Image.Image] = {}
-    for name, region in OUTFIT_REGIONS.items():
-        piece = trim_region(outfit_sheet, region)
-        piece.save(RIG_DIR / f"{name}.png", optimize=True)
-        outfits[name] = piece
-        print(f"{name}: {piece.width}x{piece.height}")
+    parts_full: dict[str, Image.Image] = {}
+    core = source.copy()
+    core_alpha = source.getchannel("A").copy()
+    for name, points in PART_POLYGONS.items():
+        part_region = polygon_mask(source.size, points)
+        part_mask = connected_part_mask(source, part_region, PART_SEEDS[name])
+        parts_full[name] = layer_from_mask(source, part_mask)
+        joint_overlap = polygon_mask(source.size, JOINT_OVERLAP_POLYGONS[name])
+        cut_mask = ImageChops.subtract(part_mask, joint_overlap)
+        core_alpha = ImageChops.subtract(core_alpha, cut_mask)
+    core.putalpha(core_alpha)
 
-    render_preview(pieces, outfits).save(RIG_DIR / "rig_preview.png", optimize=True)
-    outfit_preview = Image.new("RGBA", (1600, 600), (24, 31, 38, 255))
-    for index, outfit_name in enumerate(OUTFIT_REGIONS):
-        preview = render_preview(pieces, outfits, outfit_name)
-        preview.thumbnail((390, 580), Image.Resampling.LANCZOS)
-        outfit_preview.alpha_composite(preview, (index * 400 + 5, 10))
-    outfit_preview.save(RIG_DIR / "outfit_preview.png", optimize=True)
+    # Convert pivots and every layer to the same fixed crop.
+    crop_left, crop_top, _, _ = CROP
+    for name, pivot in list(SOURCE_PIVOTS.items()):
+        SOURCE_PIVOTS[name] = (pivot[0] - crop_left, pivot[1] - crop_top)
 
-    icon = build_icon(pieces["head"])
+    core_crop = core.crop(CROP)
+    original_crop = source.crop(CROP)
+    parts = {name: image.crop(CROP) for name, image in parts_full.items()}
+    core_crop.save(RIG_DIR / "original_core.png", optimize=True)
+    for name, image in parts.items():
+        image.save(RIG_DIR / f"original_{name}.png", optimize=True)
+
+    neutral = compose(core_crop, parts)
+    neutral.save(RIG_DIR / "original_neutral.png", optimize=True)
+    make_preview(original_crop, neutral, parts, core_crop).save(
+        RIG_DIR / "original_rig_preview.png", optimize=True)
+
+    # The neutral render must retain the original silhouette and be nearly
+    # pixel-identical.  Exact RGB is expected except at transparent boundaries.
+    diff = ImageChops.difference(original_crop, neutral)
+    bbox = diff.getbbox()
+    changed = 0 if bbox is None else sum(1 for pixel in diff.getdata() if any(pixel))
+    total_visible = sum(1 for alpha in original_crop.getchannel("A").getdata() if alpha)
+    changed_ratio = changed / max(1, total_visible)
+    if changed_ratio > 0.005:
+        raise RuntimeError(f"Neutral reconstruction changed {changed_ratio:.3%} of visible pixels")
+
+    icon = build_icon(core)
     icon.save(RIG_DIR / "app_icon.png", optimize=True)
-    icon.save(ROOT / "assets" / "coco.ico", format="ICO",
+    icon.save(ASSET_DIR / "coco.ico", format="ICO",
               sizes=[(16, 16), (24, 24), (32, 32), (48, 48),
                      (64, 64), (128, 128), (256, 256)])
-    print("Wrote rig pieces and Windows/macOS icon source")
+
+    print(f"rig canvas: {core_crop.width}x{core_crop.height}")
+    print("pivots:", SOURCE_PIVOTS)
+    print(f"neutral changed pixels: {changed} ({changed_ratio:.5%})")
+    print("wrote original-pixel rig, preview, and app icons")
 
 
 if __name__ == "__main__":

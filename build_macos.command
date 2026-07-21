@@ -21,7 +21,7 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
-for rig_asset in head torso arm_left arm_right leg_left leg_right outfit_scarf outfit_cape outfit_glasses outfit_cap; do
+for rig_asset in original_core original_arm_left original_arm_right original_leg_left original_leg_right outfit_scarf outfit_cape outfit_glasses outfit_cap; do
     cp "$SCRIPT_DIR/assets/rig/${rig_asset}.png" "$RESOURCES_DIR/${rig_asset}.png"
 done
 

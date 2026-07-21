@@ -155,8 +155,7 @@ namespace CocoDesktopPet
         private Bitmap[] idleFollowImages;
         private Bitmap[] idleLifeImages;
         private Bitmap lastFrame;
-        private Bitmap rigHead;
-        private Bitmap rigTorso;
+        private Bitmap rigCore;
         private Bitmap rigArmLeft;
         private Bitmap rigArmRight;
         private Bitmap rigLegLeft;
@@ -238,12 +237,11 @@ namespace CocoDesktopPet
 
             random = new Random();
             petImage = LoadPetImage();
-            rigHead = LoadResourceBitmap("rig_head.png");
-            rigTorso = LoadResourceBitmap("rig_torso.png");
-            rigArmLeft = LoadResourceBitmap("rig_arm_left.png");
-            rigArmRight = LoadResourceBitmap("rig_arm_right.png");
-            rigLegLeft = LoadResourceBitmap("rig_leg_left.png");
-            rigLegRight = LoadResourceBitmap("rig_leg_right.png");
+            rigCore = LoadResourceBitmap("rig_original_core.png");
+            rigArmLeft = LoadResourceBitmap("rig_original_arm_left.png");
+            rigArmRight = LoadResourceBitmap("rig_original_arm_right.png");
+            rigLegLeft = LoadResourceBitmap("rig_original_leg_left.png");
+            rigLegRight = LoadResourceBitmap("rig_original_leg_right.png");
             outfitScarf = LoadResourceBitmap("rig_outfit_scarf.png");
             outfitCape = LoadResourceBitmap("rig_outfit_cape.png");
             outfitGlasses = LoadResourceBitmap("rig_outfit_glasses.png");
@@ -257,7 +255,9 @@ namespace CocoDesktopPet
             petScreenY = work.Bottom - petHeight - 24;
 
             animationTimer = new Timer();
-            animationTimer.Interval = 16;
+            // A stable 30 FPS cadence avoids layered-window churn and still
+            // gives smooth, continuous joint interpolation.
+            animationTimer.Interval = 33;
             animationTimer.Tick += AnimationTimerTick;
 
             contextMenu = new ContextMenuStrip();
@@ -381,8 +381,7 @@ namespace CocoDesktopPet
             idleFollowImages = null;
             DisposeImages(idleLifeImages);
             idleLifeImages = null;
-            DisposeBitmap(ref rigHead);
-            DisposeBitmap(ref rigTorso);
+            DisposeBitmap(ref rigCore);
             DisposeBitmap(ref rigArmLeft);
             DisposeBitmap(ref rigArmRight);
             DisposeBitmap(ref rigLegLeft);
@@ -754,7 +753,7 @@ namespace CocoDesktopPet
         private void UpdatePetDimensions()
         {
             petHeight = Math.Max(120, (int)Math.Round(BasePetHeight * scaleFactor));
-            petWidth = Math.Max(80, (int)Math.Round(petHeight * (800.0 / 1200.0)));
+            petWidth = Math.Max(80, (int)Math.Round(petHeight * (745.0 / 1205.0)));
         }
 
         private void UpdateSizeMenuChecks()
@@ -1146,6 +1145,12 @@ namespace CocoDesktopPet
                 float rotation;
                 CalculateAnimation(out offsetX, out offsetY, out scaleX, out scaleY, out rotation);
 
+                // Never deform Coco's proportions.  Earlier builds animated by
+                // changing X/Y scale independently, which visibly stretched the
+                // source artwork and made its outline shimmer between frames.
+                scaleX = 1F;
+                scaleY = 1F;
+
                 GraphicsState state = graphics.Save();
                 float centerX = characterX + petWidth / 2F + offsetX;
                 bool rotateAroundCenter = interaction == InteractionKind.Backflip ||
@@ -1179,7 +1184,11 @@ namespace CocoDesktopPet
                 diagnosticFrameSaved = true;
             }
 
-            SetBounds(frameX, frameY, frameWidth, frameHeight, BoundsSpecified.All);
+            Rectangle nextBounds = new Rectangle(frameX, frameY, frameWidth, frameHeight);
+            if (Bounds != nextBounds)
+            {
+                SetBounds(frameX, frameY, frameWidth, frameHeight, BoundsSpecified.All);
+            }
             ApplyLayeredBitmap(frame);
 
             Bitmap oldFrame = lastFrame;
@@ -1292,40 +1301,58 @@ namespace CocoDesktopPet
         private void DrawRigCharacter(Graphics graphics, bool centerPivot, RigPose pose,
             float headTrackingWeight)
         {
-            float rigScale = petHeight / 1200F;
+            const float RigWidth = 745F;
+            const float RigHeight = 1205F;
+            float rigScale = petHeight / RigHeight;
             float originX = -petWidth / 2F;
             float originY = centerPivot ? -petHeight / 2F : -petHeight;
+
+            GraphicsState trackingState = graphics.Save();
+            float lookAngle = (float)(gazeX * 1.4 * headTrackingWeight) + pose.Head * 0.12F;
+            float lookX = (float)(gazeX * 2.5 * headTrackingWeight) + pose.HeadX * 0.10F;
+            float lookY = (float)(gazeY * 1.4 * headTrackingWeight) + pose.HeadY * 0.08F;
+            float lookPivotX = originX + RigWidth * 0.5F * rigScale;
+            float lookPivotY = originY + 790F * rigScale;
+            graphics.TranslateTransform(lookPivotX + lookX, lookPivotY + lookY);
+            graphics.RotateTransform(lookAngle);
+            graphics.TranslateTransform(-lookPivotX, -lookPivotY);
 
             if (outfit == OutfitKind.BlueCape)
             {
                 DrawRigAccessory(graphics, outfitCape, originX, originY, rigScale,
-                    90F, 485F, 620F);
+                    55F, 560F, 640F);
             }
 
             DrawRigPart(graphics, rigLegLeft, originX, originY, rigScale,
-                320F, 800F + pose.LeftLegY, 91F, 15F, pose.LeftLeg - 2F);
+                199F, 1044F + pose.LeftLegY, 199F, 1044F, pose.LeftLeg);
             DrawRigPart(graphics, rigLegRight, originX, originY, rigScale,
-                480F, 800F + pose.RightLegY, 90F, 15F, pose.RightLeg + 2F);
+                433F, 1044F + pose.RightLegY, 433F, 1044F, pose.RightLeg);
             DrawRigPart(graphics, rigArmLeft, originX, originY, rigScale,
-                215F, 555F + pose.LeftArmY, 150F, 15F, pose.LeftArm - 2F);
+                136F, 742F + pose.LeftArmY, 136F, 742F, pose.LeftArm);
             DrawRigPart(graphics, rigArmRight, originX, originY, rigScale,
-                585F, 555F + pose.RightArmY, 40F, 15F, pose.RightArm + 2F);
-            DrawRigPart(graphics, rigTorso, originX, originY, rigScale,
-                400F, 500F, rigTorso.Width / 2F, 0F, 0F);
+                484F, 748F + pose.RightArmY, 484F, 748F, pose.RightArm);
 
-            float gazeOffsetX = (float)(gazeX * 9.0 * headTrackingWeight);
-            float gazeOffsetY = (float)(gazeY * 5.0 * headTrackingWeight);
-            float gazeAngle = (float)(gazeX * 5.0 * headTrackingWeight);
-            DrawRigHead(graphics, originX, originY, rigScale,
-                400F + pose.HeadX + gazeOffsetX,
-                535F + pose.HeadY + gazeOffsetY,
-                pose.Head + gazeAngle);
+            RectangleF coreDestination = new RectangleF(originX, originY,
+                RigWidth * rigScale, RigHeight * rigScale);
+            graphics.DrawImage(rigCore, coreDestination,
+                new RectangleF(0, 0, rigCore.Width, rigCore.Height), GraphicsUnit.Pixel);
 
             if (outfit == OutfitKind.RedScarf)
             {
                 DrawRigAccessory(graphics, outfitScarf, originX, originY, rigScale,
-                    250F, 470F, 300F);
+                    185F, 650F, 375F);
             }
+            else if (outfit == OutfitKind.RoundGlasses)
+            {
+                DrawRigAccessory(graphics, outfitGlasses, originX, originY, rigScale,
+                    205F, 390F, 335F);
+            }
+            else if (outfit == OutfitKind.SailorCap)
+            {
+                DrawRigAccessory(graphics, outfitCap, originX, originY, rigScale,
+                    205F, 135F, 360F);
+            }
+            graphics.Restore(trackingState);
         }
 
         private static void DrawRigPart(Graphics graphics, Bitmap image,
@@ -1341,39 +1368,6 @@ namespace CocoDesktopPet
             graphics.DrawImage(image, destination,
                 new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
             graphics.Restore(state);
-        }
-
-        private void DrawRigHead(Graphics graphics, float originX, float originY,
-            float rigScale, float targetX, float targetY, float rotation)
-        {
-            GraphicsState state = graphics.Save();
-            graphics.TranslateTransform(originX + targetX * rigScale,
-                originY + targetY * rigScale);
-            graphics.RotateTransform(rotation);
-            RectangleF headDestination = new RectangleF(-215F * rigScale, -480F * rigScale,
-                rigHead.Width * rigScale, rigHead.Height * rigScale);
-            graphics.DrawImage(rigHead, headDestination,
-                new RectangleF(0, 0, rigHead.Width, rigHead.Height), GraphicsUnit.Pixel);
-
-            if (outfit == OutfitKind.RoundGlasses)
-            {
-                DrawLocalAccessory(graphics, outfitGlasses, rigScale, -155F, -205F, 310F);
-            }
-            else if (outfit == OutfitKind.SailorCap)
-            {
-                DrawLocalAccessory(graphics, outfitCap, rigScale, -140F, -390F, 350F);
-            }
-            graphics.Restore(state);
-        }
-
-        private static void DrawLocalAccessory(Graphics graphics, Bitmap image,
-            float rigScale, float x, float y, float width)
-        {
-            float height = width * image.Height / image.Width;
-            RectangleF destination = new RectangleF(x * rigScale, y * rigScale,
-                width * rigScale, height * rigScale);
-            graphics.DrawImage(image, destination,
-                new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
         }
 
         private static void DrawRigAccessory(Graphics graphics, Bitmap image,
@@ -1423,6 +1417,7 @@ namespace CocoDesktopPet
                         pose.Head = (float)(idleWave * 6.0 * idleEnvelope);
                         break;
                 }
+                LimitRigPose(ref pose);
                 return pose;
             }
 
@@ -1527,7 +1522,30 @@ namespace CocoDesktopPet
                     pose.HeadY = (float)(16 * envelope); pose.LeftArm = (float)(-18 * envelope);
                     pose.RightArm = (float)(18 * envelope); break;
             }
+            LimitRigPose(ref pose);
             return pose;
+        }
+
+        private static void LimitRigPose(ref RigPose pose)
+        {
+            // The original-pixel limbs need small rotations; large paper-doll
+            // angles expose empty source areas and visually detach the joints.
+            pose.LeftArm = ClampFloat(pose.LeftArm * 0.10F, -14F, 14F);
+            pose.RightArm = ClampFloat(pose.RightArm * 0.10F, -14F, 14F);
+            pose.LeftLeg = ClampFloat(pose.LeftLeg * 0.10F, -6F, 6F);
+            pose.RightLeg = ClampFloat(pose.RightLeg * 0.10F, -6F, 6F);
+            pose.LeftArmY = ClampFloat(pose.LeftArmY * 0.12F, -5F, 5F);
+            pose.RightArmY = ClampFloat(pose.RightArmY * 0.12F, -5F, 5F);
+            pose.LeftLegY = ClampFloat(pose.LeftLegY * 0.12F, -10F, 7F);
+            pose.RightLegY = ClampFloat(pose.RightLegY * 0.12F, -10F, 7F);
+            pose.Head = ClampFloat(pose.Head * 0.18F, -7F, 7F);
+            pose.HeadX = ClampFloat(pose.HeadX * 0.12F, -5F, 5F);
+            pose.HeadY = ClampFloat(pose.HeadY * 0.12F, -5F, 5F);
+        }
+
+        private static float ClampFloat(float value, float minimum, float maximum)
+        {
+            return Math.Max(minimum, Math.Min(maximum, value));
         }
 
         private void DrawContinuousCharacter(Graphics graphics, Bitmap image, int canvasSize,

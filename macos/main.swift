@@ -40,8 +40,7 @@ private final class PetView: NSView {
     private let idleLifeFrames: [NSImage]
     private let actionFramesA: [NSImage]
     private let actionFramesB: [NSImage]
-    private let rigHead: NSImage
-    private let rigTorso: NSImage
+    private let rigCore: NSImage
     private let rigArmLeft: NSImage
     private let rigArmRight: NSImage
     private let rigLegLeft: NSImage
@@ -122,16 +121,15 @@ private final class PetView: NSView {
         self.idleLifeFrames = idleLife
         self.actionFramesA = framesA
         self.actionFramesB = framesB
-        self.rigHead = rig[0]
-        self.rigTorso = rig[1]
-        self.rigArmLeft = rig[2]
-        self.rigArmRight = rig[3]
-        self.rigLegLeft = rig[4]
-        self.rigLegRight = rig[5]
-        self.outfitScarf = rig[6]
-        self.outfitCape = rig[7]
-        self.outfitGlasses = rig[8]
-        self.outfitCap = rig[9]
+        self.rigCore = rig[0]
+        self.rigArmLeft = rig[1]
+        self.rigArmRight = rig[2]
+        self.rigLegLeft = rig[3]
+        self.rigLegRight = rig[4]
+        self.outfitScarf = rig[5]
+        self.outfitCape = rig[6]
+        self.outfitGlasses = rig[7]
+        self.outfitCap = rig[8]
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
@@ -151,7 +149,7 @@ private final class PetView: NSView {
     }
 
     private func startTimer() {
-        let timer = Timer(timeInterval: 1.0 / 60.0,
+        let timer = Timer(timeInterval: 1.0 / 30.0,
                           target: self,
                           selector: #selector(animationTick),
                           userInfo: nil,
@@ -233,7 +231,8 @@ private final class PetView: NSView {
         let transform = NSAffineTransform()
         transform.translateX(by: petRect.midX + motion.dx, yBy: petRect.midY + motion.dy)
         transform.rotate(byDegrees: motion.rotation)
-        transform.scaleX(by: motion.scaleX, yBy: motion.scaleY)
+        // Preserve the original artwork's proportions on every frame.
+        transform.scaleX(by: 1, yBy: 1)
         transform.concat()
 
         let rigPose = actionIndex.map { rigPoseForAction($0, progress: progress) } ?? idleRigPose()
@@ -356,38 +355,54 @@ private final class PetView: NSView {
 
     private func drawRigCharacter(in petRect: NSRect, pose: RigPose,
                                   headTrackingWeight: CGFloat) {
-        let scale = petRect.height / 1200
+        let rigWidth: CGFloat = 745
+        let rigHeight: CGFloat = 1205
+        let scale = petRect.height / rigHeight
         let origin = NSPoint(x: -petRect.width / 2, y: -petRect.height / 2)
+
+        guard let context = NSGraphicsContext.current else { return }
+        context.saveGraphicsState()
+        let tracking = NSAffineTransform()
+        let pivot = NSPoint(x: origin.x + rigWidth * 0.5 * scale,
+                            y: origin.y + 790 * scale)
+        tracking.translateX(by: pivot.x + gazeX * 2.5 * headTrackingWeight + pose.headX * 0.10,
+                            yBy: pivot.y + gazeY * 1.4 * headTrackingWeight + pose.headY * 0.08)
+        tracking.rotate(byDegrees: gazeX * 1.4 * headTrackingWeight + pose.head * 0.12)
+        tracking.translateX(by: -pivot.x, yBy: -pivot.y)
+        tracking.concat()
 
         if outfit == .blueCape {
             drawRigAccessory(outfitCape, origin: origin, scale: scale,
-                             x: 90, y: 485, width: 620)
+                             x: 55, y: 560, width: 640)
         }
         drawRigPart(rigLegLeft, origin: origin, scale: scale,
-                    target: NSPoint(x: 320, y: 800 + pose.leftLegY),
-                    pivot: NSPoint(x: 91, y: 15), rotation: pose.leftLeg - 2)
+                    target: NSPoint(x: 199, y: 1044 + pose.leftLegY),
+                    pivot: NSPoint(x: 199, y: 1044), rotation: pose.leftLeg)
         drawRigPart(rigLegRight, origin: origin, scale: scale,
-                    target: NSPoint(x: 480, y: 800 + pose.rightLegY),
-                    pivot: NSPoint(x: 90, y: 15), rotation: pose.rightLeg + 2)
+                    target: NSPoint(x: 433, y: 1044 + pose.rightLegY),
+                    pivot: NSPoint(x: 433, y: 1044), rotation: pose.rightLeg)
         drawRigPart(rigArmLeft, origin: origin, scale: scale,
-                    target: NSPoint(x: 215, y: 555),
-                    pivot: NSPoint(x: 150, y: 15), rotation: pose.leftArm - 2)
+                    target: NSPoint(x: 136, y: 742),
+                    pivot: NSPoint(x: 136, y: 742), rotation: pose.leftArm)
         drawRigPart(rigArmRight, origin: origin, scale: scale,
-                    target: NSPoint(x: 585, y: 555),
-                    pivot: NSPoint(x: 40, y: 15), rotation: pose.rightArm + 2)
-        drawRigPart(rigTorso, origin: origin, scale: scale,
-                    target: NSPoint(x: 400, y: 500),
-                    pivot: NSPoint(x: rigTorso.size.width / 2, y: 0), rotation: 0)
+                    target: NSPoint(x: 484, y: 748),
+                    pivot: NSPoint(x: 484, y: 748), rotation: pose.rightArm)
 
-        let headTarget = NSPoint(
-            x: 400 + pose.headX + gazeX * 9 * headTrackingWeight,
-            y: 535 + pose.headY + gazeY * 5 * headTrackingWeight)
-        drawRigHead(origin: origin, scale: scale, target: headTarget,
-                    rotation: pose.head + gazeX * 5 * headTrackingWeight)
+        rigCore.draw(in: NSRect(x: origin.x, y: origin.y,
+                                width: rigWidth * scale, height: rigHeight * scale),
+                     from: .zero, operation: .sourceOver, fraction: 1,
+                     respectFlipped: true, hints: nil)
         if outfit == .redScarf {
             drawRigAccessory(outfitScarf, origin: origin, scale: scale,
-                             x: 250, y: 470, width: 300)
+                             x: 185, y: 650, width: 375)
+        } else if outfit == .roundGlasses {
+            drawRigAccessory(outfitGlasses, origin: origin, scale: scale,
+                             x: 205, y: 390, width: 335)
+        } else if outfit == .sailorCap {
+            drawRigAccessory(outfitCap, origin: origin, scale: scale,
+                             x: 205, y: 135, width: 360)
         }
+        context.restoreGraphicsState()
     }
 
     private func drawRigPart(_ image: NSImage, origin: NSPoint, scale: CGFloat,
@@ -404,39 +419,6 @@ private final class PetView: NSView {
         image.draw(in: rect, from: .zero, operation: .sourceOver,
                    fraction: 1, respectFlipped: true, hints: nil)
         context.restoreGraphicsState()
-    }
-
-    private func drawRigHead(origin: NSPoint, scale: CGFloat,
-                             target: NSPoint, rotation: CGFloat) {
-        guard let context = NSGraphicsContext.current else { return }
-        context.saveGraphicsState()
-        let transform = NSAffineTransform()
-        transform.translateX(by: origin.x + target.x * scale,
-                             yBy: origin.y + target.y * scale)
-        transform.rotate(byDegrees: rotation)
-        transform.concat()
-        rigHead.draw(in: NSRect(x: -215 * scale, y: -480 * scale,
-                                width: rigHead.size.width * scale,
-                                height: rigHead.size.height * scale),
-                     from: .zero, operation: .sourceOver, fraction: 1,
-                     respectFlipped: true, hints: nil)
-        if outfit == .roundGlasses {
-            drawLocalAccessory(outfitGlasses, scale: scale,
-                               x: -155, y: -205, width: 310)
-        } else if outfit == .sailorCap {
-            drawLocalAccessory(outfitCap, scale: scale,
-                               x: -140, y: -390, width: 350)
-        }
-        context.restoreGraphicsState()
-    }
-
-    private func drawLocalAccessory(_ image: NSImage, scale: CGFloat,
-                                    x: CGFloat, y: CGFloat, width: CGFloat) {
-        let height = width * image.size.height / image.size.width
-        image.draw(in: NSRect(x: x * scale, y: y * scale,
-                              width: width * scale, height: height * scale),
-                   from: .zero, operation: .sourceOver, fraction: 1,
-                   respectFlipped: true, hints: nil)
     }
 
     private func drawRigAccessory(_ image: NSImage, origin: NSPoint, scale: CGFloat,
@@ -473,7 +455,7 @@ private final class PetView: NSView {
             pose.rightArm = -wave * 18 * envelope
             pose.head = wave * 6 * envelope
         }
-        return pose
+        return limitedRigPose(pose)
     }
 
     private func rigPoseForAction(_ index: Int, progress t: CGFloat) -> RigPose {
@@ -514,6 +496,20 @@ private final class PetView: NSView {
         case 31: p.head = 18*envelope+wave*3; p.headY = 16*envelope; p.leftArm = -18*envelope; p.rightArm = 18*envelope
         default: break
         }
+        return limitedRigPose(p)
+    }
+
+    private func limitedRigPose(_ source: RigPose) -> RigPose {
+        var p = source
+        p.leftArm = min(14, max(-14, p.leftArm * 0.10))
+        p.rightArm = min(14, max(-14, p.rightArm * 0.10))
+        p.leftLeg = min(6, max(-6, p.leftLeg * 0.10))
+        p.rightLeg = min(6, max(-6, p.rightLeg * 0.10))
+        p.leftLegY = min(7, max(-10, p.leftLegY * 0.12))
+        p.rightLegY = min(7, max(-10, p.rightLegY * 0.12))
+        p.head = min(7, max(-7, p.head * 0.18))
+        p.headX = min(5, max(-5, p.headX * 0.12))
+        p.headY = min(5, max(-5, p.headY * 0.12))
         return p
     }
 
@@ -642,7 +638,7 @@ private final class PetView: NSView {
     }
 
     private func contentSize(for text: String?) -> NSSize {
-        let petWidth = petHeight * (800.0 / 1200.0)
+        let petWidth = petHeight * (745.0 / 1205.0)
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSSize(width: petWidth + padding * 2 + extraWidth,
@@ -651,7 +647,7 @@ private final class PetView: NSView {
 
     private func petCanvasRect(for text: String?) -> NSRect {
         let size = contentSize(for: text)
-        let petWidth = petHeight * (800.0 / 1200.0)
+        let petWidth = petHeight * (745.0 / 1205.0)
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSRect(x: padding + extraWidth,
@@ -974,7 +970,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
         }
         let rigNames = [
-            "head", "torso", "arm_left", "arm_right", "leg_left", "leg_right",
+            "original_core", "original_arm_left", "original_arm_right",
+            "original_leg_left", "original_leg_right",
             "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap"
         ]
         var rig: [NSImage] = []
