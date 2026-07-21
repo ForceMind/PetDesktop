@@ -8,6 +8,8 @@
     <string>Coco桌宠</string>
     <key>CFBundleExecutable</key>
     <string>CocoDesktopPet</string>
+    <key>CFBundleIconFile</key>
+    <string>CocoApp</string>
     <key>CFBundleIdentifier</key>
     <string>local.coco.desktop-pet</string>
     <key>CFBundleInfoDictionaryVersion</key>

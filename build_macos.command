@@ -21,18 +21,20 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
-
-for index in {1..32}; do
-    number="$(printf '%02d' "$index")"
-    cp "$SCRIPT_DIR/assets/poses/action_${number}.png" "$RESOURCES_DIR/action_${number}.png"
-    cp "$SCRIPT_DIR/assets/poses/action_${number}_b.png" "$RESOURCES_DIR/action_${number}_b.png"
+for rig_asset in head torso arm_left arm_right leg_left leg_right outfit_scarf outfit_cape outfit_glasses outfit_cap; do
+    cp "$SCRIPT_DIR/assets/rig/${rig_asset}.png" "$RESOURCES_DIR/${rig_asset}.png"
 done
 
-for index in {1..8}; do
-    number="$(printf '%02d' "$index")"
-    cp "$SCRIPT_DIR/assets/idle/idle_follow_${number}.png" "$RESOURCES_DIR/idle_follow_${number}.png"
-    cp "$SCRIPT_DIR/assets/idle/idle_life_${number}.png" "$RESOURCES_DIR/idle_life_${number}.png"
+ICONSET_DIR="$BUILD_DIR/CocoApp.iconset"
+mkdir -p "$ICONSET_DIR"
+for size in 16 32 128 256 512; do
+    double_size=$((size * 2))
+    sips -z "$size" "$size" "$SCRIPT_DIR/assets/rig/app_icon.png" \
+        --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
+    sips -z "$double_size" "$double_size" "$SCRIPT_DIR/assets/rig/app_icon.png" \
+        --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
 done
+iconutil -c icns "$ICONSET_DIR" -o "$RESOURCES_DIR/CocoApp.icns"
 
 SDK_PATH="$(xcrun --sdk macosx --show-sdk-path)"
 SOURCE_FILE="$SCRIPT_DIR/macos/main.swift"

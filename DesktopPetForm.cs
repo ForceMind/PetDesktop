@@ -56,6 +56,30 @@ namespace CocoDesktopPet
             English
         }
 
+        private enum OutfitKind
+        {
+            Default,
+            RedScarf,
+            BlueCape,
+            RoundGlasses,
+            SailorCap
+        }
+
+        private struct RigPose
+        {
+            internal float Head;
+            internal float LeftArm;
+            internal float RightArm;
+            internal float LeftLeg;
+            internal float RightLeg;
+            internal float HeadX;
+            internal float HeadY;
+            internal float LeftArmY;
+            internal float RightArmY;
+            internal float LeftLegY;
+            internal float RightLegY;
+        }
+
         private enum ClickRegion
         {
             Head,
@@ -123,6 +147,7 @@ namespace CocoDesktopPet
         private readonly ToolStripMenuItem mixedLanguageMenuItem;
         private readonly ToolStripMenuItem chineseLanguageMenuItem;
         private readonly ToolStripMenuItem englishLanguageMenuItem;
+        private readonly ToolStripMenuItem[] outfitMenuItems;
 
         private Bitmap petImage;
         private Bitmap[] actionImages;
@@ -130,6 +155,16 @@ namespace CocoDesktopPet
         private Bitmap[] idleFollowImages;
         private Bitmap[] idleLifeImages;
         private Bitmap lastFrame;
+        private Bitmap rigHead;
+        private Bitmap rigTorso;
+        private Bitmap rigArmLeft;
+        private Bitmap rigArmRight;
+        private Bitmap rigLegLeft;
+        private Bitmap rigLegRight;
+        private Bitmap outfitScarf;
+        private Bitmap outfitCape;
+        private Bitmap outfitGlasses;
+        private Bitmap outfitCap;
         private double scaleFactor = 1.0;
         private int petWidth;
         private int petHeight;
@@ -142,6 +177,7 @@ namespace CocoDesktopPet
         private DateTime interactionStarted;
         private int interactionIndex;
         private DialogueLanguage dialogueLanguage = DialogueLanguage.Chinese;
+        private OutfitKind outfit = OutfitKind.Default;
         private DateTime idleStarted;
         private DateTime idleGestureStarted;
         private DateTime nextIdleGestureAt;
@@ -189,6 +225,7 @@ namespace CocoDesktopPet
 
         internal DesktopPetForm()
         {
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             Text = "Coco 桌宠";
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
@@ -201,10 +238,16 @@ namespace CocoDesktopPet
 
             random = new Random();
             petImage = LoadPetImage();
-            actionImages = LoadActionImages(string.Empty);
-            actionImagesB = LoadActionImages("_b");
-            idleFollowImages = LoadImageSequence("idle_follow", 8);
-            idleLifeImages = LoadImageSequence("idle_life", 8);
+            rigHead = LoadResourceBitmap("rig_head.png");
+            rigTorso = LoadResourceBitmap("rig_torso.png");
+            rigArmLeft = LoadResourceBitmap("rig_arm_left.png");
+            rigArmRight = LoadResourceBitmap("rig_arm_right.png");
+            rigLegLeft = LoadResourceBitmap("rig_leg_left.png");
+            rigLegRight = LoadResourceBitmap("rig_leg_right.png");
+            outfitScarf = LoadResourceBitmap("rig_outfit_scarf.png");
+            outfitCape = LoadResourceBitmap("rig_outfit_cape.png");
+            outfitGlasses = LoadResourceBitmap("rig_outfit_glasses.png");
+            outfitCap = LoadResourceBitmap("rig_outfit_cap.png");
             idleStarted = DateTime.UtcNow;
             nextIdleGestureAt = idleStarted.AddMilliseconds(1800 + random.Next(1800));
             UpdatePetDimensions();
@@ -248,6 +291,18 @@ namespace CocoDesktopPet
             });
             UpdateLanguageMenuChecks();
 
+            ToolStripMenuItem outfitMenu = new ToolStripMenuItem("换装 / Outfit");
+            outfitMenuItems = new[]
+            {
+                CreateOutfitMenuItem("默认 / Default", OutfitKind.Default),
+                CreateOutfitMenuItem("红围巾 / Red Scarf", OutfitKind.RedScarf),
+                CreateOutfitMenuItem("蓝披风 / Blue Cape", OutfitKind.BlueCape),
+                CreateOutfitMenuItem("圆眼镜 / Round Glasses", OutfitKind.RoundGlasses),
+                CreateOutfitMenuItem("海军帽 / Sailor Cap", OutfitKind.SailorCap)
+            };
+            outfitMenu.DropDownItems.AddRange(outfitMenuItems);
+            UpdateOutfitMenuChecks();
+
             topMostMenuItem = new ToolStripMenuItem("始终置顶");
             topMostMenuItem.Checked = true;
             topMostMenuItem.CheckOnClick = true;
@@ -264,6 +319,7 @@ namespace CocoDesktopPet
 
             contextMenu.Items.Add(sizeMenu);
             contextMenu.Items.Add(languageMenu);
+            contextMenu.Items.Add(outfitMenu);
             contextMenu.Items.Add(topMostMenuItem);
             contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(exitMenu);
@@ -325,6 +381,16 @@ namespace CocoDesktopPet
             idleFollowImages = null;
             DisposeImages(idleLifeImages);
             idleLifeImages = null;
+            DisposeBitmap(ref rigHead);
+            DisposeBitmap(ref rigTorso);
+            DisposeBitmap(ref rigArmLeft);
+            DisposeBitmap(ref rigArmRight);
+            DisposeBitmap(ref rigLegLeft);
+            DisposeBitmap(ref rigLegRight);
+            DisposeBitmap(ref outfitScarf);
+            DisposeBitmap(ref outfitCape);
+            DisposeBitmap(ref outfitGlasses);
+            DisposeBitmap(ref outfitCap);
             base.OnFormClosed(e);
         }
 
@@ -388,6 +454,31 @@ namespace CocoDesktopPet
             return item;
         }
 
+        private ToolStripMenuItem CreateOutfitMenuItem(string text, OutfitKind selectedOutfit)
+        {
+            ToolStripMenuItem item = new ToolStripMenuItem(text);
+            item.Tag = selectedOutfit;
+            item.Click += delegate
+            {
+                outfit = (OutfitKind)item.Tag;
+                UpdateOutfitMenuChecks();
+                ShowBubble(LocalizedMessage("新造型准备好啦！", "New outfit ready!"), 1800);
+            };
+            return item;
+        }
+
+        private void UpdateOutfitMenuChecks()
+        {
+            if (outfitMenuItems == null)
+            {
+                return;
+            }
+            for (int index = 0; index < outfitMenuItems.Length; index++)
+            {
+                outfitMenuItems[index].Checked = (int)outfit == index;
+            }
+        }
+
         private void UpdateLanguageMenuChecks()
         {
             mixedLanguageMenuItem.Checked = dialogueLanguage == DialogueLanguage.Mixed;
@@ -410,6 +501,37 @@ namespace CocoDesktopPet
                     return TrimTransparentPixels(source, 4);
                 }
             }
+        }
+
+        private static Bitmap LoadResourceBitmap(string resourceName)
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            using (Stream stream = assembly.GetManifestResourceStream("CocoDesktopPet." + resourceName))
+            {
+                if (stream == null)
+                {
+                    throw new InvalidOperationException("Missing embedded rig resource: " + resourceName);
+                }
+                using (Bitmap source = new Bitmap(stream))
+                {
+                    Bitmap copy = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
+                    using (Graphics graphics = Graphics.FromImage(copy))
+                    {
+                        graphics.DrawImageUnscaled(source, 0, 0);
+                    }
+                    return copy;
+                }
+            }
+        }
+
+        private static void DisposeBitmap(ref Bitmap image)
+        {
+            if (image == null)
+            {
+                return;
+            }
+            image.Dispose();
+            image = null;
         }
 
         private static Bitmap[] LoadActionImages(string suffix)
@@ -632,7 +754,7 @@ namespace CocoDesktopPet
         private void UpdatePetDimensions()
         {
             petHeight = Math.Max(120, (int)Math.Round(BasePetHeight * scaleFactor));
-            petWidth = Math.Max(72, (int)Math.Round(petHeight * (petImage.Width / (double)petImage.Height)));
+            petWidth = Math.Max(80, (int)Math.Round(petHeight * (800.0 / 1200.0)));
         }
 
         private void UpdateSizeMenuChecks()
@@ -1036,17 +1158,9 @@ namespace CocoDesktopPet
                 graphics.RotateTransform(rotation);
                 graphics.ScaleTransform(scaleX, scaleY);
 
-                int poseCanvasSize = (int)Math.Round(petHeight * 1.10);
-                lastCharacterBounds = new Rectangle(
-                    (int)Math.Round(characterX + petWidth / 2F - poseCanvasSize / 2F),
-                    characterY + petHeight - poseCanvasSize,
-                    poseCanvasSize,
-                    poseCanvasSize);
-                Bitmap stableImage = idleFollowImages != null && idleFollowImages.Length > 0
-                    ? idleFollowImages[0]
-                    : petImage;
-                DrawContinuousCharacter(graphics, stableImage, poseCanvasSize,
-                    rotateAroundCenter, GetHeadTrackingWeight());
+                lastCharacterBounds = new Rectangle(characterX, characterY, petWidth, petHeight);
+                DrawRigCharacter(graphics, rotateAroundCenter, CalculateRigPose(),
+                    GetHeadTrackingWeight());
                 graphics.Restore(state);
 
                 if (!string.IsNullOrEmpty(bubbleText))
@@ -1173,6 +1287,247 @@ namespace CocoDesktopPet
                 return (float)SmoothStep((t - 0.82) / 0.18);
             }
             return 0F;
+        }
+
+        private void DrawRigCharacter(Graphics graphics, bool centerPivot, RigPose pose,
+            float headTrackingWeight)
+        {
+            float rigScale = petHeight / 1200F;
+            float originX = -petWidth / 2F;
+            float originY = centerPivot ? -petHeight / 2F : -petHeight;
+
+            if (outfit == OutfitKind.BlueCape)
+            {
+                DrawRigAccessory(graphics, outfitCape, originX, originY, rigScale,
+                    90F, 485F, 620F);
+            }
+
+            DrawRigPart(graphics, rigLegLeft, originX, originY, rigScale,
+                320F, 800F + pose.LeftLegY, 91F, 15F, pose.LeftLeg - 2F);
+            DrawRigPart(graphics, rigLegRight, originX, originY, rigScale,
+                480F, 800F + pose.RightLegY, 90F, 15F, pose.RightLeg + 2F);
+            DrawRigPart(graphics, rigArmLeft, originX, originY, rigScale,
+                215F, 555F + pose.LeftArmY, 150F, 15F, pose.LeftArm - 2F);
+            DrawRigPart(graphics, rigArmRight, originX, originY, rigScale,
+                585F, 555F + pose.RightArmY, 40F, 15F, pose.RightArm + 2F);
+            DrawRigPart(graphics, rigTorso, originX, originY, rigScale,
+                400F, 500F, rigTorso.Width / 2F, 0F, 0F);
+
+            float gazeOffsetX = (float)(gazeX * 9.0 * headTrackingWeight);
+            float gazeOffsetY = (float)(gazeY * 5.0 * headTrackingWeight);
+            float gazeAngle = (float)(gazeX * 5.0 * headTrackingWeight);
+            DrawRigHead(graphics, originX, originY, rigScale,
+                400F + pose.HeadX + gazeOffsetX,
+                535F + pose.HeadY + gazeOffsetY,
+                pose.Head + gazeAngle);
+
+            if (outfit == OutfitKind.RedScarf)
+            {
+                DrawRigAccessory(graphics, outfitScarf, originX, originY, rigScale,
+                    250F, 470F, 300F);
+            }
+        }
+
+        private static void DrawRigPart(Graphics graphics, Bitmap image,
+            float originX, float originY, float rigScale,
+            float targetX, float targetY, float pivotX, float pivotY, float rotation)
+        {
+            GraphicsState state = graphics.Save();
+            graphics.TranslateTransform(originX + targetX * rigScale,
+                originY + targetY * rigScale);
+            graphics.RotateTransform(rotation);
+            RectangleF destination = new RectangleF(-pivotX * rigScale, -pivotY * rigScale,
+                image.Width * rigScale, image.Height * rigScale);
+            graphics.DrawImage(image, destination,
+                new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
+            graphics.Restore(state);
+        }
+
+        private void DrawRigHead(Graphics graphics, float originX, float originY,
+            float rigScale, float targetX, float targetY, float rotation)
+        {
+            GraphicsState state = graphics.Save();
+            graphics.TranslateTransform(originX + targetX * rigScale,
+                originY + targetY * rigScale);
+            graphics.RotateTransform(rotation);
+            RectangleF headDestination = new RectangleF(-215F * rigScale, -480F * rigScale,
+                rigHead.Width * rigScale, rigHead.Height * rigScale);
+            graphics.DrawImage(rigHead, headDestination,
+                new RectangleF(0, 0, rigHead.Width, rigHead.Height), GraphicsUnit.Pixel);
+
+            if (outfit == OutfitKind.RoundGlasses)
+            {
+                DrawLocalAccessory(graphics, outfitGlasses, rigScale, -155F, -205F, 310F);
+            }
+            else if (outfit == OutfitKind.SailorCap)
+            {
+                DrawLocalAccessory(graphics, outfitCap, rigScale, -140F, -390F, 350F);
+            }
+            graphics.Restore(state);
+        }
+
+        private static void DrawLocalAccessory(Graphics graphics, Bitmap image,
+            float rigScale, float x, float y, float width)
+        {
+            float height = width * image.Height / image.Width;
+            RectangleF destination = new RectangleF(x * rigScale, y * rigScale,
+                width * rigScale, height * rigScale);
+            graphics.DrawImage(image, destination,
+                new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
+        }
+
+        private static void DrawRigAccessory(Graphics graphics, Bitmap image,
+            float originX, float originY, float rigScale,
+            float x, float y, float width)
+        {
+            float height = width * image.Height / image.Width;
+            RectangleF destination = new RectangleF(originX + x * rigScale,
+                originY + y * rigScale, width * rigScale, height * rigScale);
+            graphics.DrawImage(image, destination,
+                new RectangleF(0, 0, image.Width, image.Height), GraphicsUnit.Pixel);
+        }
+
+        private RigPose CalculateRigPose()
+        {
+            RigPose pose = new RigPose();
+            if (interaction == InteractionKind.None)
+            {
+                if (!idleGestureActive)
+                {
+                    return pose;
+                }
+                double idleT = Math.Max(0.0, Math.Min(1.0,
+                    (DateTime.UtcNow - idleGestureStarted).TotalMilliseconds / 1800.0));
+                double idleEnvelope = Math.Sin(Math.PI * idleT);
+                double idleWave = Math.Sin(idleT * Math.PI * 4.0);
+                switch (idleGesturePair)
+                {
+                    case 0:
+                        pose.LeftArm = (float)((58.0 + idleWave * 24.0) * idleEnvelope);
+                        pose.Head = (float)(-idleWave * 3.0 * idleEnvelope);
+                        break;
+                    case 1:
+                        pose.LeftLeg = (float)(22.0 * idleEnvelope);
+                        pose.RightLeg = (float)(-22.0 * idleEnvelope);
+                        pose.LeftLegY = (float)(-18.0 * Math.Max(0.0, idleWave) * idleEnvelope);
+                        pose.RightLegY = (float)(18.0 * Math.Min(0.0, idleWave) * idleEnvelope);
+                        break;
+                    case 2:
+                        pose.LeftArm = (float)(125.0 * idleEnvelope);
+                        pose.RightArm = (float)(-125.0 * idleEnvelope);
+                        pose.HeadY = (float)(-8.0 * idleEnvelope);
+                        break;
+                    default:
+                        pose.LeftArm = (float)(idleWave * 18.0 * idleEnvelope);
+                        pose.RightArm = (float)(-idleWave * 18.0 * idleEnvelope);
+                        pose.Head = (float)(idleWave * 6.0 * idleEnvelope);
+                        break;
+                }
+                return pose;
+            }
+
+            double t = GetInteractionProgress();
+            double envelope = Math.Sin(Math.PI * t);
+            double wave = Math.Sin(t * Math.PI * 6.0) * envelope;
+            double pulse = Math.Abs(Math.Sin(t * Math.PI * 4.0)) * envelope;
+            switch (interaction)
+            {
+                case InteractionKind.Jump:
+                    pose.LeftArm = (float)(85 * envelope); pose.RightArm = (float)(-85 * envelope);
+                    pose.LeftLeg = (float)(18 * envelope); pose.RightLeg = (float)(-18 * envelope); break;
+                case InteractionKind.Squash:
+                    pose.LeftArm = (float)(-28 * envelope); pose.RightArm = (float)(28 * envelope);
+                    pose.LeftLeg = (float)(16 * envelope); pose.RightLeg = (float)(-16 * envelope); break;
+                case InteractionKind.Shake:
+                    pose.LeftArm = (float)(wave * 35); pose.RightArm = (float)(-wave * 35);
+                    pose.Head = (float)(wave * 8); break;
+                case InteractionKind.Bounce:
+                    pose.LeftArm = (float)(55 * pulse); pose.RightArm = (float)(-55 * pulse);
+                    pose.LeftLegY = (float)(-18 * pulse); pose.RightLegY = (float)(-18 * pulse); break;
+                case InteractionKind.Nod:
+                    pose.Head = (float)(Math.Sin(t * Math.PI * 5.0) * 16 * envelope);
+                    pose.HeadY = (float)(8 * pulse); break;
+                case InteractionKind.Sway:
+                    pose.LeftArm = (float)(wave * 28); pose.RightArm = (float)(wave * 28);
+                    pose.Head = (float)(-wave * 5); break;
+                case InteractionKind.Spin:
+                case InteractionKind.ReverseSpin:
+                    pose.LeftArm = (float)(80 * envelope); pose.RightArm = (float)(-80 * envelope);
+                    pose.LeftLeg = (float)(24 * envelope); pose.RightLeg = (float)(-24 * envelope); break;
+                case InteractionKind.HopLeft:
+                    pose.LeftLeg = (float)(65 * envelope); pose.LeftLegY = (float)(-48 * envelope);
+                    pose.RightArm = (float)(-70 * envelope); break;
+                case InteractionKind.HopRight:
+                    pose.RightLeg = (float)(-65 * envelope); pose.RightLegY = (float)(-48 * envelope);
+                    pose.LeftArm = (float)(70 * envelope); break;
+                case InteractionKind.Tiptoe:
+                    pose.LeftLeg = (float)(wave * 10); pose.RightLeg = (float)(-wave * 10);
+                    pose.LeftLegY = (float)(-20 * pulse); pose.RightLegY = (float)(-20 * (envelope - pulse)); break;
+                case InteractionKind.Stretch:
+                    pose.LeftArm = (float)(145 * envelope); pose.RightArm = (float)(-145 * envelope);
+                    pose.HeadY = (float)(-12 * envelope); break;
+                case InteractionKind.Shrink:
+                    pose.LeftArm = (float)(-42 * envelope); pose.RightArm = (float)(42 * envelope);
+                    pose.LeftLeg = (float)(18 * envelope); pose.RightLeg = (float)(-18 * envelope); break;
+                case InteractionKind.PeekLeft:
+                    pose.Head = (float)(-20 * envelope); pose.HeadX = (float)(-24 * envelope);
+                    pose.LeftArm = (float)(60 * envelope); break;
+                case InteractionKind.PeekRight:
+                    pose.Head = (float)(20 * envelope); pose.HeadX = (float)(24 * envelope);
+                    pose.RightArm = (float)(-60 * envelope); break;
+                case InteractionKind.FigureEight:
+                    pose.LeftArm = (float)(Math.Sin(t * Math.PI * 4) * 75 * envelope);
+                    pose.RightArm = (float)(-Math.Cos(t * Math.PI * 4) * 75 * envelope); break;
+                case InteractionKind.Tremble:
+                    pose.LeftArm = (float)(Math.Sin(t * Math.PI * 24) * 18 * envelope);
+                    pose.RightArm = -pose.LeftArm; pose.Head = (float)(wave * 5); break;
+                case InteractionKind.Proud:
+                    pose.LeftArm = (float)(-48 * envelope); pose.RightArm = (float)(48 * envelope);
+                    pose.HeadY = (float)(-10 * envelope); break;
+                case InteractionKind.Bow:
+                    pose.Head = (float)(24 * envelope); pose.HeadY = (float)(18 * envelope);
+                    pose.LeftArm = (float)(25 * envelope); pose.RightArm = (float)(-25 * envelope); break;
+                case InteractionKind.Backflip:
+                case InteractionKind.Frontflip:
+                    pose.LeftArm = (float)(-50 * envelope); pose.RightArm = (float)(50 * envelope);
+                    pose.LeftLeg = (float)(55 * envelope); pose.RightLeg = (float)(-55 * envelope); break;
+                case InteractionKind.Dance:
+                    pose.LeftArm = (float)(wave * 100); pose.RightArm = (float)(-wave * 100);
+                    pose.LeftLeg = (float)(-wave * 32); pose.RightLeg = (float)(wave * 32); break;
+                case InteractionKind.Moonwalk:
+                    pose.LeftLeg = (float)(Math.Sin(t * Math.PI * 4) * 38 * envelope);
+                    pose.RightLeg = (float)(Math.Cos(t * Math.PI * 4) * 38 * envelope);
+                    pose.LeftArm = (float)(-25 * envelope); pose.RightArm = (float)(25 * envelope); break;
+                case InteractionKind.Heartbeat:
+                    pose.LeftArm = (float)(48 * pulse); pose.RightArm = (float)(-48 * pulse);
+                    pose.HeadY = (float)(-6 * pulse); break;
+                case InteractionKind.Dizzy:
+                    pose.Head = (float)(Math.Sin(t * Math.PI * 7) * 22 * envelope);
+                    pose.LeftArm = (float)(80 * envelope); pose.RightArm = (float)(-80 * envelope); break;
+                case InteractionKind.Sneak:
+                    pose.LeftArm = (float)(-35 * envelope + wave * 12); pose.RightArm = (float)(35 * envelope - wave * 12);
+                    pose.LeftLeg = (float)(wave * 28); pose.RightLeg = (float)(-wave * 28); break;
+                case InteractionKind.Charge:
+                    pose.LeftArm = (float)(-75 * envelope); pose.RightArm = (float)(75 * envelope);
+                    pose.LeftLeg = (float)(-22 * envelope); pose.RightLeg = (float)(22 * envelope); break;
+                case InteractionKind.Float:
+                    pose.LeftArm = (float)(112 * envelope); pose.RightArm = (float)(-112 * envelope);
+                    pose.LeftLeg = (float)(28 * envelope); pose.RightLeg = (float)(-28 * envelope); break;
+                case InteractionKind.Stomp:
+                    pose.RightLeg = (float)(-58 * envelope); pose.RightLegY = (float)(-72 * envelope);
+                    pose.LeftArm = (float)(35 * envelope); pose.RightArm = (float)(-35 * envelope); break;
+                case InteractionKind.Laugh:
+                    pose.LeftArm = (float)(65 * pulse); pose.RightArm = (float)(-65 * pulse);
+                    pose.Head = (float)(wave * 7); break;
+                case InteractionKind.Surprise:
+                    pose.LeftArm = (float)(125 * envelope); pose.RightArm = (float)(-125 * envelope);
+                    pose.LeftLeg = (float)(20 * envelope); pose.RightLeg = (float)(-20 * envelope); break;
+                case InteractionKind.Sleepy:
+                    pose.Head = (float)(18 * envelope + wave * 3);
+                    pose.HeadY = (float)(16 * envelope); pose.LeftArm = (float)(-18 * envelope);
+                    pose.RightArm = (float)(18 * envelope); break;
+            }
+            return pose;
         }
 
         private void DrawContinuousCharacter(Graphics graphics, Bitmap image, int canvasSize,

@@ -82,10 +82,19 @@ def main() -> None:
     numeric_cases = {int(value) for value in re.findall(r"case (\d+):", source)}
     assert numeric_cases == set(range(32)), "The macOS motion switch must cover actions 0...31"
     assert "updateContinuousGaze()" in source, "Missing continuous cursor tracking"
-    assert "drawContinuousCharacter(stableImage" in source, "Missing stable continuous renderer"
+    assert "drawRigCharacter(in: petRect" in source, "Missing skeletal rig renderer"
+    assert "rigPoseForAction" in source, "Missing per-action joint animation"
     assert "drawAction(actionFramesA[index]" not in source, (
         "Independent generated poses must not be blended in the live renderer"
     )
+
+    rig_dir = ROOT / "assets" / "rig"
+    rig_names = [
+        "head", "torso", "arm_left", "arm_right", "leg_left", "leg_right",
+        "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap", "app_icon",
+    ]
+    for name in rig_names:
+        assert (rig_dir / f"{name}.png").is_file(), f"Missing rig asset: {name}.png"
 
     pose_dir = ROOT / "assets" / "poses"
     frames_a = sorted(pose_dir.glob("action_[0-9][0-9].png"))
@@ -101,10 +110,13 @@ def main() -> None:
     with (ROOT / "macos" / "Info.plist").open("rb") as plist_file:
         plist = plistlib.load(plist_file)
     assert plist["CFBundleExecutable"] == "CocoDesktopPet"
+    assert plist["CFBundleIconFile"] == "CocoApp"
     assert plist["LSUIElement"] is True
 
     print("macOS static validation passed")
-    print(f"Actions: {len(frames_a)} procedural motion curves")
+    print(f"Actions: {len(frames_a)} body-motion curves + 32 joint-motion curves")
+    print("Rig: head + torso + 2 arms + 2 legs")
+    print("Outfits: default + scarf + cape + glasses + sailor cap")
     print(f"Archived source poses: {len(frames_a) + len(frames_b)}")
     print(f"Archived idle studies: {len(follow_frames) + len(life_frames)}")
     print("Dialogue: 32 Chinese + 32 pure-English action lines")

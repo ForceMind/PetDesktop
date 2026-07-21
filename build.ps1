@@ -8,6 +8,7 @@ $distDir = Join-Path $projectDir 'dist'
 $assetPath = Join-Path $projectDir 'assets\coco.png'
 $poseDir = Join-Path $projectDir 'assets\poses'
 $idleDir = Join-Path $projectDir 'assets\idle'
+$rigDir = Join-Path $projectDir 'assets\rig'
 $iconPath = Join-Path $projectDir 'assets\coco.ico'
 $exeName = "Coco$([char]0x684c)$([char]0x5ba0).exe"
 $outputPath = Join-Path $distDir $exeName
@@ -87,12 +88,18 @@ $sourceFiles = @(
     (Join-Path $projectDir 'AssemblyInfo.cs')
 )
 
-$poseResourceArgs = @()
-foreach ($poseFile in ($poseFilesA + $poseFilesB)) {
-    $poseResourceArgs += "/resource:$($poseFile.FullName),CocoDesktopPet.$($poseFile.Name)"
-}
-foreach ($idleFile in ($idleFollowFiles + $idleLifeFiles)) {
-    $poseResourceArgs += "/resource:$($idleFile.FullName),CocoDesktopPet.$($idleFile.Name)"
+$rigResourceNames = @(
+    'head.png', 'torso.png', 'arm_left.png', 'arm_right.png',
+    'leg_left.png', 'leg_right.png', 'outfit_scarf.png',
+    'outfit_cape.png', 'outfit_glasses.png', 'outfit_cap.png'
+)
+$rigResourceArgs = @()
+foreach ($rigName in $rigResourceNames) {
+    $rigPath = Join-Path $rigDir $rigName
+    if (-not (Test-Path -LiteralPath $rigPath)) {
+        throw "Missing rig resource: $rigPath"
+    }
+    $rigResourceArgs += "/resource:$rigPath,CocoDesktopPet.rig_$rigName"
 }
 
 $compilerArgs = @(
@@ -108,7 +115,7 @@ $compilerArgs = @(
     '/reference:System.Core.dll',
     '/reference:System.Drawing.dll',
     '/reference:System.Windows.Forms.dll'
-) + $poseResourceArgs + $sourceFiles
+) + $rigResourceArgs + $sourceFiles
 
 & $compiler $compilerArgs
 if ($LASTEXITCODE -ne 0) {

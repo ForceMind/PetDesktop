@@ -10,6 +10,10 @@ private enum ClickRegion {
     case head, faceLeft, faceRight, leftPaw, body, rightPaw, feet
 }
 
+private enum OutfitKind: Int {
+    case standard, redScarf, blueCape, roundGlasses, sailorCap
+}
+
 private struct PetMotion {
     var dx: CGFloat = 0
     var dy: CGFloat = 0
@@ -18,17 +22,40 @@ private struct PetMotion {
     var rotation: CGFloat = 0
 }
 
+private struct RigPose {
+    var head: CGFloat = 0
+    var leftArm: CGFloat = 0
+    var rightArm: CGFloat = 0
+    var leftLeg: CGFloat = 0
+    var rightLeg: CGFloat = 0
+    var headX: CGFloat = 0
+    var headY: CGFloat = 0
+    var leftLegY: CGFloat = 0
+    var rightLegY: CGFloat = 0
+}
+
 private final class PetView: NSView {
     private let idleImage: NSImage
     private let idleFollowFrames: [NSImage]
     private let idleLifeFrames: [NSImage]
     private let actionFramesA: [NSImage]
     private let actionFramesB: [NSImage]
+    private let rigHead: NSImage
+    private let rigTorso: NSImage
+    private let rigArmLeft: NSImage
+    private let rigArmRight: NSImage
+    private let rigLegLeft: NSImage
+    private let rigLegRight: NSImage
+    private let outfitScarf: NSImage
+    private let outfitCape: NSImage
+    private let outfitGlasses: NSImage
+    private let outfitCap: NSImage
     private var animationTimer: Timer?
     private var actionIndex: Int?
     private var actionStarted = Date.timeIntervalSinceReferenceDate
     private var speech: String?
     private var language: DialogueLanguage = .chinese
+    private var outfit: OutfitKind = .standard
     private var petHeight: CGFloat = 300
     private var mouseDownScreenPoint = NSPoint.zero
     private var mouseDownWindowOrigin = NSPoint.zero
@@ -89,12 +116,22 @@ private final class PetView: NSView {
     override var acceptsFirstResponder: Bool { true }
 
     init(frame: NSRect, idleImage: NSImage, idleFollow: [NSImage], idleLife: [NSImage],
-         framesA: [NSImage], framesB: [NSImage]) {
+         framesA: [NSImage], framesB: [NSImage], rig: [NSImage]) {
         self.idleImage = idleImage
         self.idleFollowFrames = idleFollow
         self.idleLifeFrames = idleLife
         self.actionFramesA = framesA
         self.actionFramesB = framesB
+        self.rigHead = rig[0]
+        self.rigTorso = rig[1]
+        self.rigArmLeft = rig[2]
+        self.rigArmRight = rig[3]
+        self.rigLegLeft = rig[4]
+        self.rigLegRight = rig[5]
+        self.outfitScarf = rig[6]
+        self.outfitCape = rig[7]
+        self.outfitGlasses = rig[8]
+        self.outfitCap = rig[9]
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
@@ -199,8 +236,9 @@ private final class PetView: NSView {
         transform.scaleX(by: motion.scaleX, yBy: motion.scaleY)
         transform.concat()
 
-        let stableImage = idleFollowFrames.first ?? idleImage
-        drawContinuousCharacter(stableImage, headTrackingWeight: headTrackingWeight(progress))
+        let rigPose = actionIndex.map { rigPoseForAction($0, progress: progress) } ?? idleRigPose()
+        drawRigCharacter(in: petRect, pose: rigPose,
+                         headTrackingWeight: headTrackingWeight(progress))
         context.restoreGraphicsState()
 
         if let speech {
@@ -314,6 +352,169 @@ private final class PetView: NSView {
         image.draw(in: headRect, from: headSource, operation: .sourceOver,
                    fraction: 1, respectFlipped: true, hints: nil)
         context.restoreGraphicsState()
+    }
+
+    private func drawRigCharacter(in petRect: NSRect, pose: RigPose,
+                                  headTrackingWeight: CGFloat) {
+        let scale = petRect.height / 1200
+        let origin = NSPoint(x: -petRect.width / 2, y: -petRect.height / 2)
+
+        if outfit == .blueCape {
+            drawRigAccessory(outfitCape, origin: origin, scale: scale,
+                             x: 90, y: 485, width: 620)
+        }
+        drawRigPart(rigLegLeft, origin: origin, scale: scale,
+                    target: NSPoint(x: 320, y: 800 + pose.leftLegY),
+                    pivot: NSPoint(x: 91, y: 15), rotation: pose.leftLeg - 2)
+        drawRigPart(rigLegRight, origin: origin, scale: scale,
+                    target: NSPoint(x: 480, y: 800 + pose.rightLegY),
+                    pivot: NSPoint(x: 90, y: 15), rotation: pose.rightLeg + 2)
+        drawRigPart(rigArmLeft, origin: origin, scale: scale,
+                    target: NSPoint(x: 215, y: 555),
+                    pivot: NSPoint(x: 150, y: 15), rotation: pose.leftArm - 2)
+        drawRigPart(rigArmRight, origin: origin, scale: scale,
+                    target: NSPoint(x: 585, y: 555),
+                    pivot: NSPoint(x: 40, y: 15), rotation: pose.rightArm + 2)
+        drawRigPart(rigTorso, origin: origin, scale: scale,
+                    target: NSPoint(x: 400, y: 500),
+                    pivot: NSPoint(x: rigTorso.size.width / 2, y: 0), rotation: 0)
+
+        let headTarget = NSPoint(
+            x: 400 + pose.headX + gazeX * 9 * headTrackingWeight,
+            y: 535 + pose.headY + gazeY * 5 * headTrackingWeight)
+        drawRigHead(origin: origin, scale: scale, target: headTarget,
+                    rotation: pose.head + gazeX * 5 * headTrackingWeight)
+        if outfit == .redScarf {
+            drawRigAccessory(outfitScarf, origin: origin, scale: scale,
+                             x: 250, y: 470, width: 300)
+        }
+    }
+
+    private func drawRigPart(_ image: NSImage, origin: NSPoint, scale: CGFloat,
+                             target: NSPoint, pivot: NSPoint, rotation: CGFloat) {
+        guard let context = NSGraphicsContext.current else { return }
+        context.saveGraphicsState()
+        let transform = NSAffineTransform()
+        transform.translateX(by: origin.x + target.x * scale,
+                             yBy: origin.y + target.y * scale)
+        transform.rotate(byDegrees: rotation)
+        transform.concat()
+        let rect = NSRect(x: -pivot.x * scale, y: -pivot.y * scale,
+                          width: image.size.width * scale, height: image.size.height * scale)
+        image.draw(in: rect, from: .zero, operation: .sourceOver,
+                   fraction: 1, respectFlipped: true, hints: nil)
+        context.restoreGraphicsState()
+    }
+
+    private func drawRigHead(origin: NSPoint, scale: CGFloat,
+                             target: NSPoint, rotation: CGFloat) {
+        guard let context = NSGraphicsContext.current else { return }
+        context.saveGraphicsState()
+        let transform = NSAffineTransform()
+        transform.translateX(by: origin.x + target.x * scale,
+                             yBy: origin.y + target.y * scale)
+        transform.rotate(byDegrees: rotation)
+        transform.concat()
+        rigHead.draw(in: NSRect(x: -215 * scale, y: -480 * scale,
+                                width: rigHead.size.width * scale,
+                                height: rigHead.size.height * scale),
+                     from: .zero, operation: .sourceOver, fraction: 1,
+                     respectFlipped: true, hints: nil)
+        if outfit == .roundGlasses {
+            drawLocalAccessory(outfitGlasses, scale: scale,
+                               x: -155, y: -205, width: 310)
+        } else if outfit == .sailorCap {
+            drawLocalAccessory(outfitCap, scale: scale,
+                               x: -140, y: -390, width: 350)
+        }
+        context.restoreGraphicsState()
+    }
+
+    private func drawLocalAccessory(_ image: NSImage, scale: CGFloat,
+                                    x: CGFloat, y: CGFloat, width: CGFloat) {
+        let height = width * image.size.height / image.size.width
+        image.draw(in: NSRect(x: x * scale, y: y * scale,
+                              width: width * scale, height: height * scale),
+                   from: .zero, operation: .sourceOver, fraction: 1,
+                   respectFlipped: true, hints: nil)
+    }
+
+    private func drawRigAccessory(_ image: NSImage, origin: NSPoint, scale: CGFloat,
+                                  x: CGFloat, y: CGFloat, width: CGFloat) {
+        let height = width * image.size.height / image.size.width
+        image.draw(in: NSRect(x: origin.x + x * scale, y: origin.y + y * scale,
+                              width: width * scale, height: height * scale),
+                   from: .zero, operation: .sourceOver, fraction: 1,
+                   respectFlipped: true, hints: nil)
+    }
+
+    private func idleRigPose() -> RigPose {
+        guard idleGestureActive else { return RigPose() }
+        let raw = (Date.timeIntervalSinceReferenceDate - idleGestureStarted) / 1.8
+        let t = CGFloat(min(1, max(0, raw)))
+        let envelope = sine(.pi * t)
+        let wave = sine(.pi * 4 * t)
+        var pose = RigPose()
+        switch idleGesturePair {
+        case 0:
+            pose.leftArm = (58 + wave * 24) * envelope
+            pose.head = -wave * 3 * envelope
+        case 1:
+            pose.leftLeg = 22 * envelope
+            pose.rightLeg = -22 * envelope
+            pose.leftLegY = -18 * max(0, wave) * envelope
+            pose.rightLegY = 18 * min(0, wave) * envelope
+        case 2:
+            pose.leftArm = 125 * envelope
+            pose.rightArm = -125 * envelope
+            pose.headY = -8 * envelope
+        default:
+            pose.leftArm = wave * 18 * envelope
+            pose.rightArm = -wave * 18 * envelope
+            pose.head = wave * 6 * envelope
+        }
+        return pose
+    }
+
+    private func rigPoseForAction(_ index: Int, progress t: CGFloat) -> RigPose {
+        let envelope = sine(.pi * t)
+        let wave = sine(.pi * 6 * t) * envelope
+        let pulse = abs(sine(.pi * 4 * t)) * envelope
+        var p = RigPose()
+        switch index {
+        case 0: p.leftArm = 85*envelope; p.rightArm = -85*envelope; p.leftLeg = 18*envelope; p.rightLeg = -18*envelope
+        case 1: p.leftArm = -28*envelope; p.rightArm = 28*envelope; p.leftLeg = 16*envelope; p.rightLeg = -16*envelope
+        case 2: p.leftArm = wave*35; p.rightArm = -wave*35; p.head = wave*8
+        case 3: p.leftArm = 55*pulse; p.rightArm = -55*pulse; p.leftLegY = -18*pulse; p.rightLegY = -18*pulse
+        case 4: p.head = sine(.pi*5*t)*16*envelope; p.headY = 8*pulse
+        case 5: p.leftArm = wave*28; p.rightArm = wave*28; p.head = -wave*5
+        case 6, 7: p.leftArm = 80*envelope; p.rightArm = -80*envelope; p.leftLeg = 24*envelope; p.rightLeg = -24*envelope
+        case 8: p.leftLeg = 65*envelope; p.leftLegY = -48*envelope; p.rightArm = -70*envelope
+        case 9: p.rightLeg = -65*envelope; p.rightLegY = -48*envelope; p.leftArm = 70*envelope
+        case 10: p.leftLeg = wave*10; p.rightLeg = -wave*10; p.leftLegY = -20*pulse
+        case 11: p.leftArm = 145*envelope; p.rightArm = -145*envelope; p.headY = -12*envelope
+        case 12: p.leftArm = -42*envelope; p.rightArm = 42*envelope; p.leftLeg = 18*envelope; p.rightLeg = -18*envelope
+        case 13: p.head = -20*envelope; p.headX = -24*envelope; p.leftArm = 60*envelope
+        case 14: p.head = 20*envelope; p.headX = 24*envelope; p.rightArm = -60*envelope
+        case 15: p.leftArm = sine(.pi*4*t)*75*envelope; p.rightArm = -sine(.pi*4*t + .pi/2)*75*envelope
+        case 16: p.leftArm = sine(.pi*24*t)*18*envelope; p.rightArm = -p.leftArm; p.head = wave*5
+        case 17: p.leftArm = -48*envelope; p.rightArm = 48*envelope; p.headY = -10*envelope
+        case 18: p.head = 24*envelope; p.headY = 18*envelope; p.leftArm = 25*envelope; p.rightArm = -25*envelope
+        case 19: p.head = -14*envelope; p.headX = -18*envelope; p.leftArm = 55*envelope
+        case 20, 21: p.leftArm = -50*envelope; p.rightArm = 50*envelope; p.leftLeg = 55*envelope; p.rightLeg = -55*envelope
+        case 22: p.leftArm = wave*100; p.rightArm = -wave*100; p.leftLeg = -wave*32; p.rightLeg = wave*32
+        case 23: p.leftLeg = sine(.pi*4*t)*38*envelope; p.rightLeg = sine(.pi*4*t + .pi/2)*38*envelope; p.leftArm = -25*envelope; p.rightArm = 25*envelope
+        case 24: p.leftArm = 48*pulse; p.rightArm = -48*pulse; p.headY = -6*pulse
+        case 25: p.head = sine(.pi*7*t)*22*envelope; p.leftArm = 80*envelope; p.rightArm = -80*envelope
+        case 26: p.leftArm = -35*envelope+wave*12; p.rightArm = 35*envelope-wave*12; p.leftLeg = wave*28; p.rightLeg = -wave*28
+        case 27: p.leftArm = -75*envelope; p.rightArm = 75*envelope; p.leftLeg = -22*envelope; p.rightLeg = 22*envelope
+        case 28: p.leftArm = 112*envelope; p.rightArm = -112*envelope; p.leftLeg = 28*envelope; p.rightLeg = -28*envelope
+        case 29: p.rightLeg = -58*envelope; p.rightLegY = -72*envelope; p.leftArm = 35*envelope; p.rightArm = -35*envelope
+        case 30: p.leftArm = 65*pulse; p.rightArm = -65*pulse; p.head = wave*7
+        case 31: p.head = 18*envelope+wave*3; p.headY = 16*envelope; p.leftArm = -18*envelope; p.rightArm = 18*envelope
+        default: break
+        }
+        return p
     }
 
     private func idleGestureOpacity() -> (opacity: CGFloat, secondFrame: CGFloat) {
@@ -441,22 +642,22 @@ private final class PetView: NSView {
     }
 
     private func contentSize(for text: String?) -> NSSize {
-        let petSide = petHeight * 1.10
+        let petWidth = petHeight * (800.0 / 1200.0)
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
-        return NSSize(width: petSide + padding * 2 + extraWidth,
-                      height: max(petSide + padding * 2, bubbleSize.height + padding * 2))
+        return NSSize(width: petWidth + padding * 2 + extraWidth,
+                      height: max(petHeight + padding * 2, bubbleSize.height + padding * 2))
     }
 
     private func petCanvasRect(for text: String?) -> NSRect {
         let size = contentSize(for: text)
-        let side = petHeight * 1.10
+        let petWidth = petHeight * (800.0 / 1200.0)
         let bubbleSize = measuredBubbleSize(for: text)
         let extraWidth = bubbleSize.width > 0 ? bubbleSize.width + bubbleGap : 0
         return NSRect(x: padding + extraWidth,
-                      y: (size.height - side) / 2,
-                      width: side,
-                      height: side)
+                      y: (size.height - petHeight) / 2,
+                      width: petWidth,
+                      height: petHeight)
     }
 
     private func bubbleRect(for text: String) -> NSRect {
@@ -664,6 +865,26 @@ private final class PetView: NSView {
         languageItem.submenu = languageMenu
         menu.addItem(languageItem)
 
+        let outfitItem = NSMenuItem(title: localized("换装", "Outfit"), action: nil, keyEquivalent: "")
+        let outfitMenu = NSMenu(title: outfitItem.title)
+        let outfitChoices: [(String, String, OutfitKind)] = [
+            ("默认", "Default", .standard),
+            ("红围巾", "Red Scarf", .redScarf),
+            ("蓝披风", "Blue Cape", .blueCape),
+            ("圆眼镜", "Round Glasses", .roundGlasses),
+            ("海军帽", "Sailor Cap", .sailorCap)
+        ]
+        for choice in outfitChoices {
+            let item = NSMenuItem(title: localized(choice.0, choice.1),
+                                  action: #selector(changeOutfit(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = NSNumber(value: choice.2.rawValue)
+            item.state = outfit == choice.2 ? .on : .off
+            outfitMenu.addItem(item)
+        }
+        outfitItem.submenu = outfitMenu
+        menu.addItem(outfitItem)
+
         menu.addItem(.separator())
         let topmost = NSMenuItem(title: localized("始终置顶", "Always on Top"),
                                  action: #selector(toggleTopmost(_:)), keyEquivalent: "")
@@ -694,6 +915,15 @@ private final class PetView: NSView {
         language = selected
     }
 
+    @objc private func changeOutfit(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? NSNumber,
+              let selected = OutfitKind(rawValue: value.intValue) else { return }
+        outfit = selected
+        performLayoutChange {
+            speech = localized("新造型准备好啦！", "New outfit ready!")
+        }
+    }
+
     @objc private func toggleTopmost(_ sender: NSMenuItem) {
         guard let window else { return }
         window.level = window.level == .floating ? .normal : .floating
@@ -719,6 +949,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         var framesB: [NSImage] = []
         var idleFollow: [NSImage] = []
         var idleLife: [NSImage] = []
+        if false {
         for number in 1...32 {
             let stem = String(format: "action_%02d", number)
             guard let imageA = NSImage(contentsOf: resourceURL.appendingPathComponent("\(stem).png")),
@@ -741,9 +972,23 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             idleLife.append(life)
         }
 
+        }
+        let rigNames = [
+            "head", "torso", "arm_left", "arm_right", "leg_left", "leg_right",
+            "outfit_scarf", "outfit_cape", "outfit_glasses", "outfit_cap"
+        ]
+        var rig: [NSImage] = []
+        for name in rigNames {
+            guard let image = NSImage(contentsOf: resourceURL.appendingPathComponent("\(name).png")) else {
+                showFatalError("骨骼资源不完整：\(name)\nMissing rig resource: \(name)")
+                return
+            }
+            rig.append(image)
+        }
+
         let view = PetView(frame: .zero, idleImage: idleImage,
                            idleFollow: idleFollow, idleLife: idleLife,
-                           framesA: framesA, framesB: framesB)
+                           framesA: framesA, framesB: framesB, rig: rig)
         let size = view.preferredContentSize
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.borderless],
