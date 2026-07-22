@@ -28,4 +28,5 @@ Do not open `index.html` directly from `file://`; the browser cannot load `data.
 - automatic performances and optional idle gestures
 - five idle outfits, four backgrounds, adaptive bilingual speech bubbles
 - drag, wheel resize, keyboard shortcuts, fullscreen and saved preferences
+- mobile-first bottom-sheet controls, touch dragging, body-area taps and two-finger pinch resize
 - installable PWA shell with on-demand offline frame caching

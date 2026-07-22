@@ -11,13 +11,13 @@
 }
 
 * { box-sizing: border-box; }
-html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+html, body { width: 100%; height: 100%; min-height: 100dvh; margin: 0; overflow: hidden; }
 body { background: #0b1220; color: var(--text); }
 button, select, input { font: inherit; }
 button, select { color: inherit; }
 button { cursor: pointer; }
 
-.app-shell { display: grid; grid-template-rows: 70px 1fr; height: 100%; }
+.app-shell { display: grid; grid-template-rows: 70px 1fr; height: 100%; min-height: 100dvh; }
 .topbar {
   z-index: 20; display: flex; align-items: center; justify-content: space-between;
   padding: 0 22px; background: rgba(10, 17, 30, .94); border-bottom: 1px solid var(--line);
@@ -80,7 +80,7 @@ button.ghost { background: var(--panel-soft); border: 1px solid var(--line); }
 @keyframes bubble-in { from { opacity: 0; margin-top: 5px; } }
 
 .control-panel { z-index: 10; overflow-y: auto; padding: 22px; background: var(--panel); border-left: 1px solid var(--line); transition: transform .25s ease, opacity .2s ease; }
-.panel-closed .control-panel { transform: translateX(100%); opacity: 0; pointer-events: none; }
+.panel-closed .control-panel { transform: translateX(100%); opacity: 0; visibility: hidden; pointer-events: none; }
 .panel-heading, .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .panel-heading small { color: var(--accent); letter-spacing: .14em; font-weight: 900; }
 .panel-heading h1 { margin: 4px 0 0; font-size: 21px; }
@@ -112,14 +112,39 @@ footer { display: flex; justify-content: space-between; gap: 10px; padding-top: 
 footer a { color: var(--accent-2); }
 
 @media (max-width: 850px) {
-  .workspace { display: block; }
+  .workspace { display: block; height: 100%; overflow: hidden; }
+  .stage { width: 100%; height: 100%; }
   .control-panel { position: absolute; inset: 0 0 0 auto; width: min(370px, 92vw); box-shadow: -18px 0 40px rgba(0,0,0,.35); }
   .panel-closed .control-panel { transform: translateX(105%); }
   .icon-button { display: block; }
 }
+@media (max-width: 640px) {
+  html, body, .app-shell, .workspace, .stage, .topbar { width: 100vw; max-width: 100vw; min-width: 0; }
+  .app-shell { grid-template-rows: calc(60px + env(safe-area-inset-top)) 1fr; }
+  .topbar { position: relative; padding-top: env(safe-area-inset-top); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .brand { min-width: 0; max-width: calc(100vw - 120px); }
+  .brand strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-actions { position: absolute; right: max(12px, env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); }
+  #installButton, #fullscreenButton { display: none !important; }
+  .control-panel {
+    inset: auto 0 0; width: 100%; max-height: min(78dvh, 720px);
+    padding: 18px max(18px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    border-left: 0; border-top: 1px solid var(--line); border-radius: 22px 22px 0 0;
+    box-shadow: 0 -18px 40px rgba(0,0,0,.35);
+  }
+  .panel-closed .control-panel { transform: translateY(105%); }
+  .panel-heading { position: sticky; top: -18px; z-index: 2; margin: -18px -18px 0; padding: 18px; background: rgba(17,26,43,.97); border-radius: 22px 22px 0 0; }
+  .stage-status { left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  .stage-hint { width: calc(100% - 24px); max-width: 420px; white-space: normal; text-align: center; line-height: 1.35; }
+  button, select { min-height: 44px; }
+  .toggle-row { min-height: 44px; }
+  .toggle-row i { width: 44px; height: 26px; }
+  .toggle-row i::after { width: 20px; height: 20px; }
+  .toggle-row input:checked + i::after { transform: translateX(18px); }
+  .speech-bubble { max-width: min(290px, 82vw); }
+}
 @media (max-width: 560px) {
-  .app-shell { grid-template-rows: 60px 1fr; }
-  .topbar { padding: 0 12px; }
+  .topbar { padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); }
   .brand small, #fullscreenButton { display: none; }
   .brand strong { font-size: 14px; }
   .top-actions button { padding: 8px 10px; font-size: 12px; }

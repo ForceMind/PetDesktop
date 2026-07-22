@@ -22,7 +22,7 @@
   const messages = {
     en: {
       subtitle: "Interactive web companion", install: "Install", fullscreen: "Fullscreen", controls: "Controls",
-      hint: "Drag Coco · click different areas · use the wheel to resize", loading: "Loading move…",
+      hint: "Drag Coco · click or tap different areas · wheel or pinch to resize", loading: "Loading move…",
       playLab: "PLAY LAB", panelTitle: "Make Coco your own", behavior: "Behavior",
       autoShow: "Auto performances", autoShowHelp: "Coco occasionally performs on its own",
       idleMotion: "Idle gestures", idleMotionHelp: "Subtle movement between quiet stands",
@@ -41,7 +41,7 @@
     },
     zh: {
       subtitle: "可以互动的网页版桌宠", install: "安装应用", fullscreen: "全屏", controls: "控制台",
-      hint: "拖动 Coco · 点击不同部位 · 滚轮调整大小", loading: "动作加载中…",
+      hint: "拖动 Coco · 点击不同部位 · 滚轮或双指调整大小", loading: "动作加载中…",
       playLab: "互动实验室", panelTitle: "打造你的 Coco", behavior: "行为",
       autoShow: "自动表演", autoShowHelp: "Coco 偶尔会自己表演动作",
       idleMotion: "待机小动作", idleMotionHelp: "安静站立之间偶尔活动一下",
@@ -64,15 +64,17 @@
   let deferredInstallPrompt;
   let hiddenAt = 0;
   const saved = readSettings();
+  const compactViewport = window.matchMedia("(max-width: 850px)");
+  const hasSavedPanelState = Object.prototype.hasOwnProperty.call(saved, "panelOpen");
   const state = {
     languageMode: saved.languageMode || "auto",
     outfit: saved.outfit || "default",
     background: saved.background || "desk",
-    size: Number(saved.size) || 320,
+    size: Number(saved.size) || (compactViewport.matches ? 280 : 320),
     auto: saved.auto !== false,
     idle: saved.idle !== false,
     dialogue: saved.dialogue !== false,
-    panelOpen: saved.panelOpen !== false,
+    panelOpen: hasSavedPanelState ? saved.panelOpen !== false : !compactViewport.matches,
     x: Number.isFinite(saved.x) ? saved.x : null,
     y: Number.isFinite(saved.y) ? saved.y : null,
     active: null,
@@ -88,6 +90,8 @@
     bubbleUntil: 0,
     lastDrawnImage: null,
     drag: null,
+    pointers: new Map(),
+    pinch: null,
     gazeX: 0,
     gazeY: 0
   };
@@ -398,10 +402,34 @@
     ui.pet.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       ui.pet.setPointerCapture(event.pointerId);
-      state.drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, petX: state.x, petY: state.y, moved: false };
+      state.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (state.pointers.size === 1) {
+        state.drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, petX: state.x, petY: state.y, moved: false };
+      } else if (state.pointers.size === 2) {
+        const points = [...state.pointers.values()];
+        state.pinch = {
+          distance: Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)),
+          size: state.size,
+          centerX: state.x + state.size / 2,
+          bottom: state.y + state.size
+        };
+        state.drag = null;
+      }
       ui.pet.classList.add("dragging");
     });
     ui.pet.addEventListener("pointermove", (event) => {
+      if (state.pointers.has(event.pointerId)) {
+        state.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+      if (state.pinch && state.pointers.size >= 2) {
+        const points = [...state.pointers.values()].slice(0, 2);
+        const distance = Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y));
+        state.size = Math.round(Math.max(160, Math.min(520, state.pinch.size * distance / state.pinch.distance)) / 10) * 10;
+        state.x = state.pinch.centerX - state.size / 2;
+        state.y = state.pinch.bottom - state.size;
+        applyGeometry();
+        return;
+      }
       if (!state.drag || event.pointerId !== state.drag.pointerId) return;
       const dx = event.clientX - state.drag.startX;
       const dy = event.clientY - state.drag.startY;
@@ -413,7 +441,20 @@
       }
     });
     ui.pet.addEventListener("pointerup", (event) => {
-      if (!state.drag || event.pointerId !== state.drag.pointerId) return;
+      if (!state.pointers.has(event.pointerId)) return;
+      const wasPinching = state.pinch !== null || state.pointers.size > 1;
+      state.pointers.delete(event.pointerId);
+      if (wasPinching) {
+        if (state.pointers.size < 2) state.pinch = null;
+        state.drag = null;
+        if (state.pointers.size === 0) ui.pet.classList.remove("dragging");
+        saveSettings();
+        return;
+      }
+      if (!state.drag || event.pointerId !== state.drag.pointerId) {
+        ui.pet.classList.remove("dragging");
+        return;
+      }
       const moved = state.drag.moved;
       state.drag = null;
       ui.pet.classList.remove("dragging");
@@ -422,9 +463,14 @@
       const region = regionAt(event.clientX - rect.left, event.clientY - rect.top);
       requestAction(findAction(pick(data.regions[region])), region, true);
     });
-    ui.pet.addEventListener("pointercancel", () => { state.drag = null; ui.pet.classList.remove("dragging"); });
+    ui.pet.addEventListener("pointercancel", (event) => {
+      state.pointers.delete(event.pointerId);
+      state.drag = null;
+      state.pinch = null;
+      ui.pet.classList.remove("dragging");
+    });
     ui.stage.addEventListener("pointermove", (event) => {
-      if (state.drag) return;
+      if (state.drag || state.pinch || event.pointerType === "touch") return;
       const rect = ui.pet.getBoundingClientRect();
       const targetX = Math.max(-1, Math.min(1, (event.clientX - rect.left) / rect.width * 2 - 1));
       const targetY = Math.max(-1, Math.min(1, (event.clientY - rect.top) / rect.height * 2 - 1));
@@ -457,7 +503,10 @@
     ui.pause.addEventListener("click", () => setPaused(!state.paused));
     ui.panelButton.addEventListener("click", () => setPanel(!state.panelOpen));
     ui.closePanel.addEventListener("click", () => setPanel(false));
-    ui.fullscreen.addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
+    ui.fullscreen.addEventListener("click", () => {
+      if (!document.fullscreenEnabled) return;
+      document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    });
     ui.install.addEventListener("click", async () => { if (deferredInstallPrompt) { deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; ui.install.hidden = true; } });
     window.addEventListener("beforeinstallprompt", (event) => { event.preventDefault(); deferredInstallPrompt = event; ui.install.hidden = false; });
     window.addEventListener("resize", () => { applyGeometryWithoutReset(); });
@@ -503,6 +552,7 @@
       setPanel(state.panelOpen);
       applyGeometry();
       bindEvents();
+      if (!document.fullscreenEnabled) ui.fullscreen.hidden = true;
       await loadIdle(state.outfit);
       requestAnimationFrame(render);
       if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js");

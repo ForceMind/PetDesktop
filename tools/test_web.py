@@ -51,6 +51,11 @@ def main() -> None:
     require("serviceWorker.register" in source, "PWA registration is missing")
     require("rigArm" not in source and "drawImage" in source, "web renderer must use whole frames")
     require("FRAME_LAYOUT" in source and "frame_neutral.png" in source, "deduplicated Pages frame layout is missing")
+    require("state.pinch" in source and "state.pointers" in source, "mobile pinch interaction is missing")
+    styles = (WEB / "styles.css").read_text(encoding="utf-8")
+    require("100dvh" in styles and "safe-area-inset-bottom" in styles, "mobile viewport/safe-area layout is missing")
+    visible_sources = "\n".join((WEB / name).read_text(encoding="utf-8") for name in required)
+    require("github" not in visible_sources.lower(), "deployed web sources must not show GitHub branding")
 
     with __import__("zipfile").ZipFile(FRAMES / "runtime_frames.zip") as archive:
         require(len(archive.namelist()) == 222, "web runtime archive must contain 222 unique PNGs")

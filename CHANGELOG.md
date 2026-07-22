@@ -2,6 +2,11 @@
 
 发布包可从 [GitHub Releases](https://github.com/ForceMind/PetDesktop/releases) 获取。
 
+## 未发布
+
+- Web 页面移除可见的 GitHub 链接与品牌字样，适合独立部署到 Cloudflare Pages。
+- 完成移动端适配：动态视口与刘海安全区、默认收起的底部控制抽屉、44px 触摸目标、触摸拖动、部位点击和双指缩放。
+
 ## v1.8.0 - 2026-07-22
 
 ### Windows 缩放稳定性
