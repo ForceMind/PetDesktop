@@ -616,7 +616,10 @@
       setPanel(state.panelOpen);
       applyGeometry();
       bindEvents();
-      if (isStandalone()) ui.installPanel.hidden = true;
+      if (isStandalone()) {
+        ui.install.hidden = true;
+        ui.installPanel.hidden = true;
+      }
       else setTimeout(showInstallTip, 2600);
       if (!document.fullscreenEnabled) ui.fullscreen.hidden = true;
       await loadIdle(state.outfit);

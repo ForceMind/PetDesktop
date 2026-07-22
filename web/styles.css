@@ -132,10 +132,10 @@ footer a { color: var(--accent-2); }
   html, body, .app-shell, .workspace, .stage, .topbar { width: 100vw; max-width: 100vw; min-width: 0; }
   .app-shell { grid-template-rows: calc(60px + env(safe-area-inset-top)) 1fr; }
   .topbar { position: relative; padding-top: env(safe-area-inset-top); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
-  .brand { min-width: 0; max-width: calc(100vw - 120px); }
+  .brand { min-width: 0; max-width: calc(100vw - 170px); }
   .brand strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .top-actions { position: absolute; right: max(12px, env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); }
-  #installButton, #fullscreenButton { display: none !important; }
+  #fullscreenButton { display: none !important; }
   .control-panel {
     inset: auto 0 0; width: 100%; max-height: min(78dvh, 720px);
     padding: 18px max(18px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));

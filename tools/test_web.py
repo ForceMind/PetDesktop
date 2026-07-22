@@ -64,6 +64,9 @@ def main() -> None:
     for icon in manifest["icons"]:
         require((WEB / icon["src"].removeprefix("./")).is_file(), f"missing PWA icon: {icon['src']}")
     require("installPanelButton" in source and "installIos" in source, "cross-platform install guidance is missing")
+    index = (WEB / "index.html").read_text(encoding="utf-8")
+    require('id="installButton" class="ghost" data-i18n="install"' in index, "top install button must always be visible")
+    require("#installButton, #fullscreenButton" not in styles, "mobile layout must not hide the install button")
     packager = (ROOT / "tools" / "package_cloudflare.py").read_text(encoding="utf-8")
     require("as_posix()" in packager and "backslash paths" in packager, "Cloudflare ZIP path validation is missing")
 
