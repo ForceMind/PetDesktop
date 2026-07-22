@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import zipfile
+from collections import deque
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -72,6 +73,111 @@ def alpha_bbox(image: Image.Image) -> tuple[int, int, int, int]:
     return bbox
 
 
+FOOT_BAND_RATIO = 0.12
+BLEED_ALPHA_THRESHOLD = 8
+BLEED_MAX_SIZE = 4000
+BLEED_MAX_DEPTH = 48
+
+
+def remove_grid_bleed(frame: Image.Image) -> Image.Image:
+    """Erase sprite fragments that bled across the sheet's fixed grid lines.
+
+    Characters drawn slightly taller than their 512px cell leave feet or head
+    crowns inside the neighbouring cell; after grid cropping those fragments
+    float at the frame's top or bottom edge (e.g. another action's feet above
+    the head). They are small, hug one edge, and are disconnected from the
+    character, while a genuinely tall pose is one large connected component,
+    so size and depth bounds separate the two reliably.
+    """
+    width, height = frame.size
+    alpha = bytearray(frame.getchannel("A").tobytes())
+    visited = bytearray(width * height)
+    removed = False
+    for edge_y in (0, height - 1):
+        for edge_x in range(width):
+            start = edge_y * width + edge_x
+            if visited[start] or alpha[start] <= BLEED_ALPHA_THRESHOLD:
+                continue
+            component = [start]
+            queue = deque(component)
+            visited[start] = 1
+            min_y = max_y = edge_y
+            while queue:
+                position = queue.popleft()
+                y, x = divmod(position, width)
+                if y < min_y:
+                    min_y = y
+                if y > max_y:
+                    max_y = y
+                for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                    if 0 <= nx < width and 0 <= ny < height:
+                        neighbour = ny * width + nx
+                        if not visited[neighbour] and alpha[neighbour] > BLEED_ALPHA_THRESHOLD:
+                            visited[neighbour] = 1
+                            component.append(neighbour)
+                            queue.append(neighbour)
+            depth = max_y if edge_y == 0 else height - 1 - min_y
+            if len(component) <= BLEED_MAX_SIZE and depth <= BLEED_MAX_DEPTH:
+                for position in component:
+                    alpha[position] = 0
+                removed = True
+    if not removed:
+        return frame
+    cleaned = frame.copy()
+    cleaned.putalpha(Image.frombytes("L", (width, height), bytes(alpha)))
+    return cleaned
+
+
+def foot_anchor_x(image: Image.Image) -> float:
+    """Alpha-weighted x centroid of the lowest visible band of the character.
+
+    The feet are the visual anchor of a standing character: aligning on the
+    whole-body centroid would drag the feet sideways whenever an arm extends.
+    """
+    left, top, right, bottom = alpha_bbox(image)
+    band_height = max(8, int((bottom - top) * FOOT_BAND_RATIO))
+    band = image.crop((left, max(top, bottom - band_height), right, bottom))
+    alpha = band.getchannel("A").load()
+    width, height = band.size
+    total = 0
+    weighted = 0
+    for y in range(height):
+        for x in range(width):
+            value = alpha[x, y]
+            if value > 8:
+                total += value
+                weighted += value * x
+    if total == 0:
+        return (left + right) / 2.0
+    return left + weighted / total
+
+
+def align_to_neutral(
+    frame: Image.Image,
+    anchor_x: float,
+    neutral_bottom: int,
+    align_bottom: bool,
+) -> Image.Image:
+    """Shift a frame so its foot anchor matches the neutral frame.
+
+    The authored sheets place the character at slightly different positions in
+    each 512x512 cell; without this correction the runtime, which draws every
+    frame at a fixed rectangle, shows the character jittering sideways. Vertical
+    alignment is only applied to idle frames: action frames may leave the
+    ground on purpose (jump arcs), idle breathing must not.
+    """
+    left, top, right, bottom = alpha_bbox(frame)
+    dx = int(round(anchor_x - foot_anchor_x(frame)))
+    dy = int(round(neutral_bottom - bottom)) if align_bottom else 0
+    dx = max(-left, min(CANVAS[0] - right, dx))
+    dy = max(-top, min(CANVAS[1] - bottom, dy))
+    if dx == 0 and dy == 0:
+        return frame
+    moved = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    moved.paste(frame, (dx, dy))
+    return moved
+
+
 def split_sheet(path: Path) -> list[Image.Image]:
     sheet = Image.open(path).convert("RGBA")
     expected = (CANVAS[0] * CELL_COLUMNS, CANVAS[1] * CELL_ROWS)
@@ -81,7 +187,7 @@ def split_sheet(path: Path) -> list[Image.Image]:
     for index in range(CELL_COLUMNS * CELL_ROWS):
         x = index % CELL_COLUMNS * CANVAS[0]
         y = index // CELL_COLUMNS * CANVAS[1]
-        frames.append(sheet.crop((x, y, x + CANVAS[0], y + CANVAS[1])))
+        frames.append(remove_grid_bleed(sheet.crop((x, y, x + CANVAS[0], y + CANVAS[1]))))
     return frames
 
 
@@ -171,13 +277,27 @@ def main() -> None:
     neutral_path = ASSET_ROOT / "neutral_512.png"
     neutral.save(neutral_path, optimize=True)
 
+    anchor_x = foot_anchor_x(neutral)
+    neutral_bottom = alpha_bbox(neutral)[3]
+
     idle_clips = {
-        name: save_idle_clip(name, split_sheet(SOURCE_ROOT / source))
+        name: save_idle_clip(
+            name,
+            [
+                align_to_neutral(frame, anchor_x, neutral_bottom, True)
+                for frame in split_sheet(SOURCE_ROOT / source)
+            ],
+        )
         for name, source in IDLE_SOURCES
     }
     action_clips = {
         name: save_action_clip(
-            f"actions/{name}", split_sheet(SOURCE_ROOT / source), neutral
+            f"actions/{name}",
+            [
+                align_to_neutral(frame, anchor_x, neutral_bottom, False)
+                for frame in split_sheet(SOURCE_ROOT / source)
+            ],
+            neutral,
         )
         for name, source in ACTION_SOURCES
     }
