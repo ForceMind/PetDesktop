@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DIST_DIR="$SCRIPT_DIR/dist-macos"
-APP_DIR="$DIST_DIR/Coco桌宠.app"
+APP_DIR="$DIST_DIR/Coco Desktop Pet.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
@@ -20,6 +20,12 @@ rm -rf "$APP_DIR" "$BUILD_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
+mkdir -p "$RESOURCES_DIR/zh-Hans.lproj"
+cp "$SCRIPT_DIR/macos/zh-Hans.lproj/InfoPlist.strings" \
+    "$RESOURCES_DIR/zh-Hans.lproj/InfoPlist.strings"
+mkdir -p "$RESOURCES_DIR/zh-Hant.lproj"
+cp "$SCRIPT_DIR/macos/zh-Hant.lproj/InfoPlist.strings" \
+    "$RESOURCES_DIR/zh-Hant.lproj/InfoPlist.strings"
 mkdir -p "$RESOURCES_DIR/frame_animation_v2"
 cp "$SCRIPT_DIR/assets/frame_animation_v2/neutral_512.png" \
     "$RESOURCES_DIR/frame_animation_v2/neutral_512.png"
@@ -89,12 +95,12 @@ if command -v codesign >/dev/null 2>&1; then
 fi
 
 rm -rf "$BUILD_DIR"
-rm -f "$DIST_DIR/Coco桌宠-macOS.zip"
-ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$DIST_DIR/Coco桌宠-macOS.zip"
+rm -f "$DIST_DIR/CocoDesktopPet-macOS.zip"
+ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$DIST_DIR/CocoDesktopPet-macOS.zip"
 
 echo
 echo "构建完成：$APP_DIR"
-echo "压缩包：$DIST_DIR/Coco桌宠-macOS.zip"
+echo "压缩包：$DIST_DIR/CocoDesktopPet-macOS.zip"
 if [[ -z "${CI:-}" ]]; then
     open -R "$APP_DIR"
     read -r -p "按回车键退出 / Press Return to exit..."

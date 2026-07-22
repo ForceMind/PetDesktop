@@ -47,6 +47,10 @@ py tools\validate_macos_source.py
 7. 滚轮缩放到最小和最大，确认角色只等比变化，不拉长或压扁。
 8. 将鼠标移到角色四周，确认注视方向正确且变化平滑。
 9. 中英文长对白均应完整显示，气泡不遮挡角色。
+10. 非中文系统应为纯英文，右键菜单没有语言切换且没有任何可见中文。
+11. 中文系统应默认中文并显示中文/English 切换；切到 English 后菜单和对白应为英文。
+
+Windows 可运行 `tools/test_system_language.ps1`，它分别模拟 `en-US` 与 `zh-CN` UI Culture，并验证默认语言、语言菜单可见性和英文菜单中不存在中文字符。macOS 的对应源代码与本地化包约束由 `tools/validate_macos_source.py` 检查。
 10. Windows 双击 EXE、macOS 双击 App 均可直接运行，应用图标正常。
 
 ## 诊断帧

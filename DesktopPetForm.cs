@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -53,7 +54,6 @@ namespace CocoDesktopPet
 
         private enum DialogueLanguage
         {
-            Mixed,
             Chinese,
             English
         }
@@ -142,14 +142,18 @@ namespace CocoDesktopPet
         private readonly Random random;
         private readonly ContextMenuStrip contextMenu;
         private readonly ToolStripMenuItem topMostMenuItem;
+        private readonly ToolStripMenuItem sizeMenuItem;
+        private readonly ToolStripMenuItem languageMenuItem;
+        private readonly ToolStripMenuItem outfitMenuItem;
+        private readonly ToolStripMenuItem exitMenuItem;
         private readonly ToolStripMenuItem smallSizeMenuItem;
         private readonly ToolStripMenuItem normalSizeMenuItem;
         private readonly ToolStripMenuItem largeSizeMenuItem;
         private readonly ToolStripMenuItem extraLargeSizeMenuItem;
-        private readonly ToolStripMenuItem mixedLanguageMenuItem;
         private readonly ToolStripMenuItem chineseLanguageMenuItem;
         private readonly ToolStripMenuItem englishLanguageMenuItem;
         private readonly ToolStripMenuItem[] outfitMenuItems;
+        private readonly bool systemUsesChineseUi;
 
         private Bitmap petImage;
         private Bitmap[] idleFrameImages;
@@ -186,7 +190,7 @@ namespace CocoDesktopPet
         private InteractionKind interaction = InteractionKind.None;
         private DateTime interactionStarted;
         private int interactionIndex;
-        private DialogueLanguage dialogueLanguage = DialogueLanguage.Chinese;
+        private DialogueLanguage dialogueLanguage = DialogueLanguage.English;
         private OutfitKind outfit = OutfitKind.Default;
         private DateTime idleStarted;
         private DateTime idleGestureStarted;
@@ -235,8 +239,12 @@ namespace CocoDesktopPet
 
         internal DesktopPetForm()
         {
+            systemUsesChineseUi = SystemUsesChineseUi();
+            dialogueLanguage = systemUsesChineseUi
+                ? DialogueLanguage.Chinese
+                : DialogueLanguage.English;
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            Text = "Coco 桌宠";
+            Text = UiText("Coco 桌宠", "Coco Desktop Pet");
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
@@ -275,12 +283,12 @@ namespace CocoDesktopPet
             contextMenu.Padding = new Padding(4);
             contextMenu.Renderer = new CocoMenuRenderer();
 
-            ToolStripMenuItem sizeMenu = new ToolStripMenuItem("调整大小");
-            smallSizeMenuItem = CreateSizeMenuItem("小巧  75%", 0.75);
-            normalSizeMenuItem = CreateSizeMenuItem("标准  100%", 1.00);
-            largeSizeMenuItem = CreateSizeMenuItem("大号  125%", 1.25);
-            extraLargeSizeMenuItem = CreateSizeMenuItem("超大  150%", 1.50);
-            sizeMenu.DropDownItems.AddRange(new ToolStripItem[]
+            sizeMenuItem = new ToolStripMenuItem();
+            smallSizeMenuItem = CreateSizeMenuItem(string.Empty, 0.75);
+            normalSizeMenuItem = CreateSizeMenuItem(string.Empty, 1.00);
+            largeSizeMenuItem = CreateSizeMenuItem(string.Empty, 1.25);
+            extraLargeSizeMenuItem = CreateSizeMenuItem(string.Empty, 1.50);
+            sizeMenuItem.DropDownItems.AddRange(new ToolStripItem[]
             {
                 smallSizeMenuItem,
                 normalSizeMenuItem,
@@ -288,31 +296,29 @@ namespace CocoDesktopPet
                 extraLargeSizeMenuItem
             });
 
-            ToolStripMenuItem languageMenu = new ToolStripMenuItem("对白语言 / Language");
-            mixedLanguageMenuItem = CreateLanguageMenuItem("中英随机 / Mixed", DialogueLanguage.Mixed);
-            chineseLanguageMenuItem = CreateLanguageMenuItem("中文", DialogueLanguage.Chinese);
-            englishLanguageMenuItem = CreateLanguageMenuItem("English", DialogueLanguage.English);
-            languageMenu.DropDownItems.AddRange(new ToolStripItem[]
+            languageMenuItem = new ToolStripMenuItem();
+            chineseLanguageMenuItem = CreateLanguageMenuItem(string.Empty, DialogueLanguage.Chinese);
+            englishLanguageMenuItem = CreateLanguageMenuItem(string.Empty, DialogueLanguage.English);
+            languageMenuItem.DropDownItems.AddRange(new ToolStripItem[]
             {
-                mixedLanguageMenuItem,
                 chineseLanguageMenuItem,
                 englishLanguageMenuItem
             });
             UpdateLanguageMenuChecks();
 
-            ToolStripMenuItem outfitMenu = new ToolStripMenuItem("换装 / Outfit");
+            outfitMenuItem = new ToolStripMenuItem();
             outfitMenuItems = new[]
             {
-                CreateOutfitMenuItem("默认 / Default", OutfitKind.Default),
-                CreateOutfitMenuItem("红围巾 / Red Scarf", OutfitKind.RedScarf),
-                CreateOutfitMenuItem("蓝披风 / Blue Cape", OutfitKind.BlueCape),
-                CreateOutfitMenuItem("圆眼镜 / Round Glasses", OutfitKind.RoundGlasses),
-                CreateOutfitMenuItem("海军帽 / Sailor Cap", OutfitKind.SailorCap)
+                CreateOutfitMenuItem(string.Empty, OutfitKind.Default),
+                CreateOutfitMenuItem(string.Empty, OutfitKind.RedScarf),
+                CreateOutfitMenuItem(string.Empty, OutfitKind.BlueCape),
+                CreateOutfitMenuItem(string.Empty, OutfitKind.RoundGlasses),
+                CreateOutfitMenuItem(string.Empty, OutfitKind.SailorCap)
             };
-            outfitMenu.DropDownItems.AddRange(outfitMenuItems);
+            outfitMenuItem.DropDownItems.AddRange(outfitMenuItems);
             UpdateOutfitMenuChecks();
 
-            topMostMenuItem = new ToolStripMenuItem("始终置顶");
+            topMostMenuItem = new ToolStripMenuItem();
             topMostMenuItem.Checked = true;
             topMostMenuItem.CheckOnClick = true;
             topMostMenuItem.Click += delegate
@@ -323,15 +329,20 @@ namespace CocoDesktopPet
                     : LocalizedMessage("需要我时再叫我吧。", "Call me when you need me."), 2200);
             };
 
-            ToolStripMenuItem exitMenu = new ToolStripMenuItem("退出 Coco");
-            exitMenu.Click += delegate { Close(); };
+            exitMenuItem = new ToolStripMenuItem();
+            exitMenuItem.Click += delegate { Close(); };
 
-            contextMenu.Items.Add(sizeMenu);
-            contextMenu.Items.Add(languageMenu);
-            contextMenu.Items.Add(outfitMenu);
+            ApplyInterfaceLanguage();
+
+            contextMenu.Items.Add(sizeMenuItem);
+            if (systemUsesChineseUi)
+            {
+                contextMenu.Items.Add(languageMenuItem);
+            }
+            contextMenu.Items.Add(outfitMenuItem);
             contextMenu.Items.Add(topMostMenuItem);
             contextMenu.Items.Add(new ToolStripSeparator());
-            contextMenu.Items.Add(exitMenu);
+            contextMenu.Items.Add(exitMenuItem);
 
             MouseDown += PetMouseDown;
             MouseMove += PetMouseMove;
@@ -476,18 +487,15 @@ namespace CocoDesktopPet
             item.Click += delegate
             {
                 dialogueLanguage = (DialogueLanguage)item.Tag;
+                ApplyInterfaceLanguage();
                 UpdateLanguageMenuChecks();
                 if (dialogueLanguage == DialogueLanguage.Chinese)
                 {
                     ShowBubble("中文对白已开启！", 1800);
                 }
-                else if (dialogueLanguage == DialogueLanguage.English)
-                {
-                    ShowBubble("English dialogue is on!", 1800);
-                }
                 else
                 {
-                    ShowBubble(random.Next(2) == 0 ? "中英随机切换～" : "Chinese + English!", 1800);
+                    ShowBubble("English dialogue is on!", 1800);
                 }
             };
             return item;
@@ -523,9 +531,41 @@ namespace CocoDesktopPet
 
         private void UpdateLanguageMenuChecks()
         {
-            mixedLanguageMenuItem.Checked = dialogueLanguage == DialogueLanguage.Mixed;
             chineseLanguageMenuItem.Checked = dialogueLanguage == DialogueLanguage.Chinese;
             englishLanguageMenuItem.Checked = dialogueLanguage == DialogueLanguage.English;
+        }
+
+        private static bool SystemUsesChineseUi()
+        {
+            string cultureName = CultureInfo.CurrentUICulture.Name ?? string.Empty;
+            return cultureName.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
+                cultureName.StartsWith("zh-", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string UiText(string chinese, string english)
+        {
+            return dialogueLanguage == DialogueLanguage.Chinese ? chinese : english;
+        }
+
+        private void ApplyInterfaceLanguage()
+        {
+            Text = UiText("Coco 桌宠", "Coco Desktop Pet");
+            sizeMenuItem.Text = UiText("调整大小", "Resize");
+            smallSizeMenuItem.Text = UiText("小巧  75%", "Small  75%");
+            normalSizeMenuItem.Text = UiText("标准  100%", "Normal  100%");
+            largeSizeMenuItem.Text = UiText("大号  125%", "Large  125%");
+            extraLargeSizeMenuItem.Text = UiText("超大  150%", "Extra Large  150%");
+            languageMenuItem.Text = UiText("对白语言", "Dialogue Language");
+            chineseLanguageMenuItem.Text = UiText("中文（可混合简单 English）", "Chinese (light English)");
+            englishLanguageMenuItem.Text = UiText("English（纯英文）", "English only");
+            outfitMenuItem.Text = UiText("换装", "Outfit");
+            outfitMenuItems[0].Text = UiText("默认", "Default");
+            outfitMenuItems[1].Text = UiText("红围巾", "Red Scarf");
+            outfitMenuItems[2].Text = UiText("蓝披风", "Blue Cape");
+            outfitMenuItems[3].Text = UiText("圆眼镜", "Round Glasses");
+            outfitMenuItems[4].Text = UiText("海军帽", "Sailor Cap");
+            topMostMenuItem.Text = UiText("始终置顶", "Always on Top");
+            exitMenuItem.Text = UiText("退出 Coco", "Quit Coco");
         }
 
         private static Bitmap LoadPetImage()
@@ -535,7 +575,9 @@ namespace CocoDesktopPet
             {
                 if (stream == null)
                 {
-                    throw new InvalidOperationException("找不到内置的 Coco 图片资源。");
+                    throw new InvalidOperationException(SystemUsesChineseUi()
+                        ? "找不到内置的 Coco 图片资源。"
+                        : "The embedded Coco image resource is missing.");
                 }
 
                 using (Bitmap source = new Bitmap(stream))
@@ -613,9 +655,11 @@ namespace CocoDesktopPet
                     index + 1, suffix);
                 using (Stream stream = assembly.GetManifestResourceStream(resourceName))
                 {
-                    if (stream == null)
-                    {
-                        throw new InvalidOperationException("找不到动作图片资源：" + resourceName);
+                if (stream == null)
+                {
+                    throw new InvalidOperationException(SystemUsesChineseUi()
+                        ? "找不到动作图片资源：" + resourceName
+                        : "The action image resource is missing: " + resourceName);
                     }
 
                     using (Bitmap source = new Bitmap(stream))
@@ -944,7 +988,8 @@ namespace CocoDesktopPet
             interactionIndex++;
             interactionStarted = DateTime.UtcNow;
             idleGestureActive = false;
-            Text = string.Format("Coco 桌宠 - {0} - {1}", region, interaction);
+            Text = string.Format(UiText("Coco 桌宠 - {0} - {1}",
+                "Coco Desktop Pet - {0} - {1}"), region, interaction);
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("COCO_PET_DIAGNOSTIC_FRAME")))
             {
                 diagnosticFrameSaved = false;
@@ -960,8 +1005,7 @@ namespace CocoDesktopPet
 
         private string PickRegionDialogue(ClickRegion region)
         {
-            bool english = dialogueLanguage == DialogueLanguage.English ||
-                (dialogueLanguage == DialogueLanguage.Mixed && random.Next(2) == 1);
+            bool english = dialogueLanguage == DialogueLanguage.English;
             switch (region)
             {
                 case ClickRegion.Head:
@@ -988,8 +1032,7 @@ namespace CocoDesktopPet
                 return SimpleMixedLines[random.Next(SimpleMixedLines.Length)];
             }
 
-            bool useEnglish = dialogueLanguage == DialogueLanguage.English ||
-                (dialogueLanguage == DialogueLanguage.Mixed && random.Next(2) == 1);
+            bool useEnglish = dialogueLanguage == DialogueLanguage.English;
 
             if (random.Next(4) == 0)
             {
@@ -1002,15 +1045,7 @@ namespace CocoDesktopPet
 
         private string LocalizedMessage(string chinese, string english)
         {
-            if (dialogueLanguage == DialogueLanguage.English)
-            {
-                return english;
-            }
-            if (dialogueLanguage == DialogueLanguage.Mixed && random.Next(2) == 1)
-            {
-                return english;
-            }
-            return chinese;
+            return dialogueLanguage == DialogueLanguage.English ? english : chinese;
         }
 
         private string PickChineseDialogue(InteractionKind kind)
@@ -1114,7 +1149,7 @@ namespace CocoDesktopPet
                 // Every joint curve ends at zero, so resetting the idle clock
                 // continues from the exact same neutral rig without a hard cut.
                 idleStarted = now;
-                Text = "Coco 桌宠 - Idle";
+                Text = UiText("Coco 桌宠 - 待机", "Coco Desktop Pet - Idle");
                 nextIdleGestureAt = now.AddMilliseconds(700 + random.Next(900));
             }
 

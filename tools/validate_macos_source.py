@@ -78,6 +78,9 @@ def main() -> None:
     assert all(line.isascii() for line in english + english_extras), (
         "English dialogue mode contains non-ASCII text"
     )
+    assert "Locale.preferredLanguages.first" in source, "Missing macOS system-language detection"
+    assert "if cocoSystemUsesChineseUI" in source, "macOS language menu is not system-gated"
+    assert "case mixed" not in source and ".mixed" not in source, "Obsolete mixed mode is still exposed"
 
     assert "updateContinuousGaze()" in source, "Missing continuous cursor tracking"
     draw_block = source[source.index("override func draw"):source.index("private func drawIdleLayers")]
@@ -117,15 +120,29 @@ def main() -> None:
         plist = plistlib.load(plist_file)
     assert plist["CFBundleExecutable"] == "CocoDesktopPet"
     assert plist["CFBundleIconFile"] == "CocoApp"
-    assert plist["CFBundleDisplayName"] == "Coco桌宠"
-    assert plist["CFBundleName"] == "Coco桌宠"
+    assert plist["CFBundleDevelopmentRegion"] == "en"
+    assert plist["CFBundleDisplayName"] == "Coco Desktop Pet"
+    assert plist["CFBundleName"] == "Coco Desktop Pet"
+    assert "zh-Hans" in plist["CFBundleLocalizations"]
+    assert "zh-Hant" in plist["CFBundleLocalizations"]
     assert plist["LSUIElement"] is True
+    chinese_info = ROOT / "macos" / "zh-Hans.lproj" / "InfoPlist.strings"
+    chinese_info_text = chinese_info.read_text(encoding="utf-8")
+    assert '"CFBundleDisplayName" = "Coco桌宠";' in chinese_info_text
+    assert '"CFBundleName" = "Coco桌宠";' in chinese_info_text
+    assert "zh-Hans.lproj/InfoPlist.strings" in mac_build
+    traditional_info = ROOT / "macos" / "zh-Hant.lproj" / "InfoPlist.strings"
+    traditional_info_text = traditional_info.read_text(encoding="utf-8")
+    assert '"CFBundleDisplayName" = "Coco桌寵";' in traditional_info_text
+    assert '"CFBundleName" = "Coco桌寵";' in traditional_info_text
+    assert "zh-Hant.lproj/InfoPlist.strings" in mac_build
 
     print("macOS static validation passed")
     print("Actions: 32 x 8 whole-character frames")
     print("Renderer: direct square-frame drawing without rig or stretch")
     print("Outfits: five regenerated idle frame sequences, no overlays")
     print("Dialogue: 32 Chinese + 32 pure-English action lines")
+    print("Locale: English-only by default; Chinese systems expose the language switch")
     print("Timeline: stable Coco -> continuous motion -> stable Coco")
 
 

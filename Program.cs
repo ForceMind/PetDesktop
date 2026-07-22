@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -14,7 +15,12 @@ namespace CocoDesktopPet
             {
                 if (!isFirstInstance)
                 {
-                    MessageBox.Show("Coco 已经在桌面上啦！", "Coco 桌宠",
+                    string cultureName = CultureInfo.CurrentUICulture.Name ?? string.Empty;
+                    bool chineseUi = cultureName.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
+                        cultureName.StartsWith("zh-", StringComparison.OrdinalIgnoreCase);
+                    MessageBox.Show(
+                        chineseUi ? "Coco 已经在桌面上啦！" : "Coco is already on your desktop!",
+                        chineseUi ? "Coco 桌宠" : "Coco Desktop Pet",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }

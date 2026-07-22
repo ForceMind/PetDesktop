@@ -1,9 +1,18 @@
 import Cocoa
 
+private let cocoSystemUsesChineseUI: Bool = {
+    let identifier = Locale.preferredLanguages.first ?? Locale.current.identifier
+    return identifier.lowercased().replacingOccurrences(of: "_", with: "-")
+        .hasPrefix("zh")
+}()
+
+private func cocoLocalized(_ chinese: String, _ english: String) -> String {
+    cocoSystemUsesChineseUI ? chinese : english
+}
+
 private enum DialogueLanguage: Int {
     case chinese
     case english
-    case mixed
 }
 
 private enum ClickRegion {
@@ -63,7 +72,7 @@ private final class PetView: NSView {
     private var actionIndex: Int?
     private var actionStarted = Date.timeIntervalSinceReferenceDate
     private var speech: String?
-    private var language: DialogueLanguage = .chinese
+    private var language: DialogueLanguage = cocoSystemUsesChineseUI ? .chinese : .english
     private var outfit: OutfitKind = .standard
     private var petHeight: CGFloat = 300
     private var mouseDownScreenPoint = NSPoint.zero
@@ -847,8 +856,6 @@ private final class PetView: NSView {
             return Int.random(in: 0..<4) == 0
                 ? englishExtras.randomElement()!
                 : englishLines[index]
-        case .mixed:
-            return Bool.random() ? chineseLines[index] : englishLines[index]
         }
     }
 
@@ -881,7 +888,7 @@ private final class PetView: NSView {
     }
 
     private func regionDialogue(_ region: ClickRegion) -> String {
-        let english = language == .english || (language == .mixed && Bool.random())
+        let english = language == .english
         switch region {
         case .head: return english ? "Careful with my blue feathers!" : "摸摸头，羽毛可别弄乱啦～"
         case .faceLeft: return english ? "That cheek is ticklish!" : "左脸有一点怕痒！"
@@ -990,23 +997,24 @@ private final class PetView: NSView {
         sizeItem.submenu = sizeMenu
         menu.addItem(sizeItem)
 
-        let languageItem = NSMenuItem(title: localized("对白语言", "Dialogue Language"), action: nil, keyEquivalent: "")
-        let languageMenu = NSMenu(title: languageItem.title)
-        let languageChoices: [(String, String, DialogueLanguage)] = [
-            ("中文（可混合简单 English）", "Chinese (light English)", .chinese),
-            ("英文（纯 English）", "English only", .english),
-            ("中英随机", "Chinese / English mix", .mixed)
-        ]
-        for choice in languageChoices {
-            let item = NSMenuItem(title: localized(choice.0, choice.1),
-                                  action: #selector(changeLanguage(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = NSNumber(value: choice.2.rawValue)
-            item.state = language == choice.2 ? .on : .off
-            languageMenu.addItem(item)
+        if cocoSystemUsesChineseUI {
+            let languageItem = NSMenuItem(title: localized("对白语言", "Dialogue Language"), action: nil, keyEquivalent: "")
+            let languageMenu = NSMenu(title: languageItem.title)
+            let languageChoices: [(String, String, DialogueLanguage)] = [
+                ("中文（可混合简单 English）", "Chinese (light English)", .chinese),
+                ("English（纯英文）", "English only", .english)
+            ]
+            for choice in languageChoices {
+                let item = NSMenuItem(title: localized(choice.0, choice.1),
+                                      action: #selector(changeLanguage(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = NSNumber(value: choice.2.rawValue)
+                item.state = language == choice.2 ? .on : .off
+                languageMenu.addItem(item)
+            }
+            languageItem.submenu = languageMenu
+            menu.addItem(languageItem)
         }
-        languageItem.submenu = languageMenu
-        menu.addItem(languageItem)
 
         let outfitItem = NSMenuItem(title: localized("换装", "Outfit"), action: nil, keyEquivalent: "")
         let outfitMenu = NSMenu(title: outfitItem.title)
@@ -1084,13 +1092,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
         guard let resourceURL = Bundle.main.resourceURL else {
-            showFatalError("无法读取 Coco 图片资源。\nUnable to load Coco image resources.")
+            showFatalError(cocoLocalized("无法读取 Coco 图片资源。", "Unable to load Coco image resources."))
             return
         }
         let frameRoot = resourceURL.appendingPathComponent("frame_animation_v2", isDirectory: true)
         guard let idleImage = NSImage(contentsOf:
                 frameRoot.appendingPathComponent("neutral_512.png")) else {
-            showFatalError("无法读取站立母版。\nUnable to load neutral standing frame.")
+            showFatalError(cocoLocalized("无法读取站立母版。", "Unable to load neutral standing frame."))
             return
         }
 
@@ -1106,7 +1114,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 let path = frameRoot.appendingPathComponent("idle/\(name)/" +
                     String(format: "frame_%02d.png", number))
                 guard let image = NSImage(contentsOf: path) else {
-                    showFatalError("待机资源不完整：\(name)\nMissing idle frame: \(path.lastPathComponent)")
+                    showFatalError(cocoLocalized("待机资源不完整：\(name)",
+                                                 "Missing idle frame: \(path.lastPathComponent)"))
                     return
                 }
                 sequence.append(image)
@@ -1130,7 +1139,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 let path = frameRoot.appendingPathComponent("actions/\(name)/" +
                     String(format: "frame_%02d.png", number))
                 guard let image = NSImage(contentsOf: path) else {
-                    showFatalError("动作资源不完整：\(name)\nMissing action frame: \(path.lastPathComponent)")
+                    showFatalError(cocoLocalized("动作资源不完整：\(name)",
+                                                 "Missing action frame: \(path.lastPathComponent)"))
                     return
                 }
                 sequence.append(image)
@@ -1142,7 +1152,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         var rig: [NSImage] = []
         for name in rigNames {
             guard let image = NSImage(contentsOf: resourceURL.appendingPathComponent("\(name).png")) else {
-                showFatalError("骨骼资源不完整：\(name)\nMissing rig resource: \(name)")
+                showFatalError(cocoLocalized("骨骼资源不完整：\(name)",
+                                             "Missing rig resource: \(name)"))
                 return
             }
             rig.append(image)
@@ -1178,7 +1189,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showFatalError(_ message: String) {
         let alert = NSAlert()
-        alert.messageText = "Coco 桌宠"
+        alert.messageText = cocoLocalized("Coco 桌宠", "Coco Desktop Pet")
         alert.informativeText = message
         alert.alertStyle = .critical
         alert.runModal()

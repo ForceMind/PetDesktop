@@ -2,6 +2,16 @@
 
 发布包可从 [GitHub Releases](https://github.com/ForceMind/PetDesktop/releases) 获取。
 
+## 未发布
+
+### 按系统语言启用中文
+
+- Windows 与 macOS 默认使用英文；仅当系统 UI 语言为中文（包括简体、繁体及地区变体）时默认启用中文。
+- 非中文系统固定使用纯英文，右键菜单不显示语言切换，窗口标题、菜单、提示、错误和对白均无可见中文。
+- 中文系统显示中文/English 切换；中文模式允许少量简单英文，English 模式保持纯英文。
+- Windows 单文件产物改为 `CocoDesktopPet.exe`；macOS 默认包名改为 `Coco Desktop Pet.app`，中文显示名称由系统本地化资源提供。
+- 新增 Windows 双 Culture 行为测试，并扩展 macOS 静态本地化检查。
+
 ## v1.5.1 - 2026-07-22
 
 ### 网格渗漏清理，修复头顶出现其他动作的脚

@@ -8,7 +8,7 @@ $distDir = Join-Path $projectDir 'dist'
 $assetPath = Join-Path $projectDir 'assets\coco.png'
 $frameArchivePath = Join-Path $projectDir 'assets\frame_animation_v2\runtime_frames.zip'
 $iconPath = Join-Path $projectDir 'assets\coco.ico'
-$exeName = "Coco$([char]0x684c)$([char]0x5ba0).exe"
+$exeName = 'CocoDesktopPet.exe'
 $outputPath = Join-Path $distDir $exeName
 
 if (-not (Test-Path -LiteralPath $assetPath)) {

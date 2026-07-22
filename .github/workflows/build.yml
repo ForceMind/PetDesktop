@@ -34,6 +34,9 @@ jobs:
       - name: Verify seven click regions
         shell: pwsh
         run: ./tools/test_click_regions.ps1
+      - name: Verify system-language UI policy
+        shell: pwsh
+        run: ./tools/test_system_language.ps1
       - name: Prepare stable release filename
         shell: pwsh
         run: |

@@ -9,7 +9,7 @@
 .\smoke_test.ps1
 ```
 
-产物为 `dist\Coco桌宠.exe`。构建脚本会把 `assets/frame_animation_v2/runtime_frames.zip` 和图标嵌入单文件 EXE，无需安装器；仅用于创作参考的 `assets/coco.png` 不进入运行包。
+产物为 `dist\CocoDesktopPet.exe`。构建脚本会把 `assets/frame_animation_v2/runtime_frames.zip` 和图标嵌入单文件 EXE，无需安装器；仅用于创作参考的 `assets/coco.png` 不进入运行包。
 
 ## macOS
 
@@ -20,7 +20,7 @@ chmod +x build_macos.command
 ./build_macos.command
 ```
 
-脚本生成 `dist-macos/Coco桌宠.app` 与 `dist-macos/Coco桌宠-macOS.zip`，并尽可能合并 Apple Silicon 与 Intel 二进制。未配置开发者证书时使用临时本地签名。
+脚本生成 `dist-macos/Coco Desktop Pet.app` 与 `dist-macos/CocoDesktopPet-macOS.zip`，并尽可能合并 Apple Silicon 与 Intel 二进制。默认应用元数据为英文，`zh-Hans.lproj` 与 `zh-Hant.lproj` 仅在简体或繁体中文系统中提供中文显示名称。未配置开发者证书时使用临时本地签名。
 
 ## 发布前检查
 
