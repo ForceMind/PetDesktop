@@ -82,12 +82,24 @@ def main() -> None:
     assert "updateContinuousGaze()" in source, "Missing continuous cursor tracking"
     draw_block = source[source.index("override func draw"):source.index("private func drawIdleLayers")]
     assert "currentWholeCharacterFrame()" in draw_block, "Live renderer does not select whole frames"
-    assert "image.draw(in: petRect" in draw_block, "Whole frame is not drawn directly"
+    assert "currentActionOffset(canvasSize: petRect.height)" in draw_block
+    assert "image.draw(in: motionRect" in draw_block, "Whole frame is not drawn directly"
     assert "drawRigCharacter" not in draw_block, "Live renderer still assembles rig parts"
     assert "transform.scale" not in draw_block, "Live renderer still stretches authored frames"
     assert "let petWidth = petHeight" in source, "Square authored canvas is not preserved"
     assert "frameIdleOutfits" in source, "Missing fully regenerated outfit idle sequences"
     assert "frameActions" in source, "Missing authored action sequences"
+    for action_case in (8, 9, 15, 22, 25, 26):
+        assert f"case {action_case}:" in source, f"Missing explicit motion path {action_case}"
+
+    windows_source = (ROOT / "DesktopPetForm.cs").read_text(encoding="utf-8")
+    for action_name in ("HopLeft", "HopRight", "FigureEight", "Moonwalk", "Sneak", "Charge"):
+        assert f"case InteractionKind.{action_name}:" in windows_source, (
+            f"Windows is missing the {action_name} motion path"
+        )
+    mac_build = (ROOT / "build_macos.command").read_text(encoding="utf-8")
+    assert "cp -R \"$SCRIPT_DIR/assets/frame_animation_v2/idle\"" not in mac_build
+    assert "for number in $(seq 2 7)" in mac_build
 
     frame_root = ROOT / "assets" / "frame_animation_v2"
     assert (frame_root / "neutral_512.png").is_file(), "Missing neutral standing frame"
@@ -105,6 +117,8 @@ def main() -> None:
         plist = plistlib.load(plist_file)
     assert plist["CFBundleExecutable"] == "CocoDesktopPet"
     assert plist["CFBundleIconFile"] == "CocoApp"
+    assert plist["CFBundleDisplayName"] == "Coco桌宠"
+    assert plist["CFBundleName"] == "Coco桌宠"
     assert plist["LSUIElement"] is True
 
     print("macOS static validation passed")

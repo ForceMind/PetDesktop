@@ -255,13 +255,21 @@ def make_runtime_archive(
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         archive.write(neutral_path, "frame_neutral.png")
         for outfit_index, (name, paths) in enumerate(idle_clips.items()):
-            for frame_index, relative in enumerate(paths, 1):
+            # Frame 7 is byte-identical to frame 1. The default outfit's first
+            # frame is also the canonical neutral. Reconstruct those references
+            # in memory instead of storing identical PNG bytes again.
+            stored = list(enumerate(paths[:6], 1))
+            if outfit_index == 0:
+                stored = stored[1:]
+            for frame_index, relative in stored:
                 archive.write(
                     ASSET_ROOT / relative,
                     f"frame_idle_{outfit_index:02d}_{frame_index:02d}.png",
                 )
         for action_index, (_, paths) in enumerate(action_clips.items(), 1):
-            for frame_index, relative in enumerate(paths, 1):
+            # Every action shares the same canonical neutral at frames 1 and 8.
+            # Store only the six authored poses; both runtimes reuse neutral.
+            for frame_index, relative in enumerate(paths[1:7], 2):
                 archive.write(
                     ASSET_ROOT / relative,
                     f"frame_action_{action_index:02d}_{frame_index:02d}.png",

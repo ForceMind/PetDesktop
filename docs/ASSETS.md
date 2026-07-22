@@ -12,7 +12,7 @@
 - `idle/default`、`idle/red_scarf`、`idle/blue_cape`、`idle/round_glasses`、`idle/sailor_cap`：5 套完整待机序列，每套 7 帧。
 - `actions/01_jump` 至 `actions/32_sleepy`：32 套默认外观互动序列，每套 8 帧。
 - `manifest.json`：帧尺寸、数量、编号和端点约定。
-- `runtime_frames.zip`：Windows 嵌入资源与发布构建输入。
+- `runtime_frames.zip`：Windows 嵌入资源与发布构建输入；只保存 222 张无重复 PNG，并还原为 292 个逻辑帧。
 - `continuity_baseline_preview.png`：连续性人工检查预览。
 - `source`：创作阶段的原始生成表与透明处理结果。
 
@@ -50,4 +50,4 @@ py tools/prepare_frame_animation_v2.py
 - 垂直：仅待机帧把 alpha 底边钉到 neutral 底边（呼吸不离地）；动作帧不做垂直对齐，保留跳跃、空翻的离地弧线。
 - 平移量会被 clamp，保证角色不移出画布；无需平移的帧（如端点 neutral）原样输出。
 
-因此**新增或重绘生成表后不要求逐格位置精确**，但必须重新运行本脚本再构建；直接把手工帧放进 `idle/`、`actions/` 目录会绕过对齐。带整体位移的动作（左右跳、太空步等）目前也会被锚定为原地动作，位移感由帧内姿态呈现。
+因此**新增或重绘生成表后不要求逐格位置精确**，但必须重新运行本脚本再构建；直接把手工帧放进 `idle/`、`actions/` 目录会绕过对齐。左右跳、八字移动、太空步、潜行和冲锋会在对齐后由运行时施加显式平滑轨迹，轨迹首尾归零，不会破坏待机端点。

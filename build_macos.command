@@ -20,14 +20,29 @@ rm -rf "$APP_DIR" "$BUILD_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$BUILD_DIR"
 
 cp "$SCRIPT_DIR/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$SCRIPT_DIR/assets/coco.png" "$RESOURCES_DIR/coco.png"
 mkdir -p "$RESOURCES_DIR/frame_animation_v2"
 cp "$SCRIPT_DIR/assets/frame_animation_v2/neutral_512.png" \
     "$RESOURCES_DIR/frame_animation_v2/neutral_512.png"
-cp -R "$SCRIPT_DIR/assets/frame_animation_v2/idle" \
-    "$RESOURCES_DIR/frame_animation_v2/idle"
-cp -R "$SCRIPT_DIR/assets/frame_animation_v2/actions" \
+mkdir -p "$RESOURCES_DIR/frame_animation_v2/idle" \
     "$RESOURCES_DIR/frame_animation_v2/actions"
+for outfit_dir in "$SCRIPT_DIR"/assets/frame_animation_v2/idle/*; do
+    outfit_name="$(basename "$outfit_dir")"
+    target_dir="$RESOURCES_DIR/frame_animation_v2/idle/$outfit_name"
+    mkdir -p "$target_dir"
+    first=1
+    if [[ "$outfit_name" == "default" ]]; then first=2; fi
+    for number in $(seq "$first" 6); do
+        cp "$outfit_dir/frame_$(printf '%02d' "$number").png" "$target_dir/"
+    done
+done
+for action_dir in "$SCRIPT_DIR"/assets/frame_animation_v2/actions/*; do
+    action_name="$(basename "$action_dir")"
+    target_dir="$RESOURCES_DIR/frame_animation_v2/actions/$action_name"
+    mkdir -p "$target_dir"
+    for number in $(seq 2 7); do
+        cp "$action_dir/frame_$(printf '%02d' "$number").png" "$target_dir/"
+    done
+done
 
 ICONSET_DIR="$BUILD_DIR/CocoApp.iconset"
 mkdir -p "$ICONSET_DIR"

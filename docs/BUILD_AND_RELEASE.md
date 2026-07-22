@@ -9,7 +9,7 @@
 .\smoke_test.ps1
 ```
 
-产物为 `dist\Coco桌宠.exe`。构建脚本会把 `assets/frame_animation_v2/runtime_frames.zip`、对白和图标嵌入单文件 EXE，无需安装器。
+产物为 `dist\Coco桌宠.exe`。构建脚本会把 `assets/frame_animation_v2/runtime_frames.zip` 和图标嵌入单文件 EXE，无需安装器；仅用于创作参考的 `assets/coco.png` 不进入运行包。
 
 ## macOS
 
@@ -44,10 +44,10 @@ py tools\validate_macos_source.py
 
 ```powershell
 git add --all
-git commit -m "Replace layered rig with authored whole-frame animations"
+git commit -m "Deduplicate frames and restore authored motion paths"
 git push origin main
-git tag -a v1.5.0 -m "Coco Desktop Pet v1.5.0"
-git push origin v1.5.0
+git tag -a v1.5.1 -m "Coco Desktop Pet v1.5.1"
+git push origin v1.5.1
 ```
 
 不要在同一版本标签上覆盖产物；需要修复时创建新的补丁版本。

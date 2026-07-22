@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -250,9 +251,9 @@ namespace CocoDesktopPet
             // is assembled at runtime, so shoulders, hands, clothing and the
             // transparent silhouette cannot separate while animating.
             petImage = LoadResourceBitmap("frame_neutral.png");
-            idleOutfitFrameImages = LoadFrameIdles();
+            idleOutfitFrameImages = LoadFrameIdles(petImage);
             idleFrameImages = idleOutfitFrameImages[0];
-            actionFrameImages = LoadFrameActions();
+            actionFrameImages = LoadFrameActions(petImage);
             idleFollowImages = null;
             idleLifeImages = null;
             idleStarted = DateTime.UtcNow;
@@ -364,29 +365,28 @@ namespace CocoDesktopPet
                 lastFrame.Dispose();
                 lastFrame = null;
             }
-            if (petImage != null)
-            {
-                petImage.Dispose();
-                petImage = null;
-            }
-            DisposeImages(idleFrameImages);
-            idleFrameImages = null;
+            HashSet<Bitmap> authoredFrames = new HashSet<Bitmap>();
+            if (petImage != null) authoredFrames.Add(petImage);
+            AddImages(authoredFrames, idleFrameImages);
             if (idleOutfitFrameImages != null)
             {
                 for (int index = 1; index < idleOutfitFrameImages.Length; index++)
                 {
-                    DisposeImages(idleOutfitFrameImages[index]);
+                    AddImages(authoredFrames, idleOutfitFrameImages[index]);
                 }
-                idleOutfitFrameImages = null;
             }
             if (actionFrameImages != null)
             {
                 foreach (Bitmap[] sequence in actionFrameImages)
                 {
-                    DisposeImages(sequence);
+                    AddImages(authoredFrames, sequence);
                 }
-                actionFrameImages = null;
             }
+            foreach (Bitmap image in authoredFrames) image.Dispose();
+            petImage = null;
+            idleFrameImages = null;
+            idleOutfitFrameImages = null;
+            actionFrameImages = null;
             DisposeBitmap(ref rigCore);
             DisposeBitmap(ref rigArmLeft);
             DisposeBitmap(ref rigArmRight);
@@ -643,13 +643,15 @@ namespace CocoDesktopPet
             return images;
         }
 
-        private static Bitmap[][] LoadFrameActions()
+        private static Bitmap[][] LoadFrameActions(Bitmap neutral)
         {
             Bitmap[][] actions = new Bitmap[InteractionOrder.Length][];
             for (int actionIndex = 0; actionIndex < actions.Length; actionIndex++)
             {
                 actions[actionIndex] = new Bitmap[8];
-                for (int frameIndex = 0; frameIndex < 8; frameIndex++)
+                actions[actionIndex][0] = neutral;
+                actions[actionIndex][7] = neutral;
+                for (int frameIndex = 1; frameIndex < 7; frameIndex++)
                 {
                     string resourceName = string.Format("frame_action_{0:D2}_{1:D2}.png",
                         actionIndex + 1, frameIndex + 1);
@@ -659,18 +661,24 @@ namespace CocoDesktopPet
             return actions;
         }
 
-        private static Bitmap[][] LoadFrameIdles()
+        private static Bitmap[][] LoadFrameIdles(Bitmap neutral)
         {
             Bitmap[][] outfits = new Bitmap[5][];
             for (int outfitIndex = 0; outfitIndex < outfits.Length; outfitIndex++)
             {
                 outfits[outfitIndex] = new Bitmap[7];
-                for (int frameIndex = 0; frameIndex < 7; frameIndex++)
+                for (int frameIndex = 0; frameIndex < 6; frameIndex++)
                 {
+                    if (outfitIndex == 0 && frameIndex == 0)
+                    {
+                        outfits[outfitIndex][frameIndex] = neutral;
+                        continue;
+                    }
                     string resourceName = string.Format("frame_idle_{0:D2}_{1:D2}.png",
                         outfitIndex, frameIndex + 1);
                     outfits[outfitIndex][frameIndex] = LoadResourceBitmap(resourceName);
                 }
+                outfits[outfitIndex][6] = outfits[outfitIndex][0];
             }
             return outfits;
         }
@@ -684,6 +692,15 @@ namespace CocoDesktopPet
             foreach (Bitmap image in images)
             {
                 if (image != null) image.Dispose();
+            }
+        }
+
+        private static void AddImages(HashSet<Bitmap> target, Bitmap[] images)
+        {
+            if (images == null) return;
+            foreach (Bitmap image in images)
+            {
+                if (image != null) target.Add(image);
             }
         }
 
@@ -1287,7 +1304,51 @@ namespace CocoDesktopPet
             // The v2 timeline deliberately renders exactly one opaque authored
             // frame. Drawing a second frame, even with a nominal zero opacity,
             // risks translucent contours in layered-window composition.
+            GraphicsState state = graphics.Save();
+            PointF motion = GetAuthoredActionOffset(canvasSize);
+            graphics.TranslateTransform(motion.X, motion.Y);
             DrawSprite(graphics, first, canvasSize, canvasSize, false, 1F);
+            graphics.Restore(state);
+        }
+
+        private PointF GetAuthoredActionOffset(int canvasSize)
+        {
+            if (interaction == InteractionKind.None)
+            {
+                return PointF.Empty;
+            }
+
+            double t = Math.Max(0.0, Math.Min(1.0, GetInteractionProgress()));
+            // All paths begin and end at zero, preserving the exact neutral
+            // endpoint while restoring motion intentionally removed by frame
+            // anchoring. Frame anchoring removes jitter; this curve supplies
+            // the designed whole-character trajectory independently.
+            double envelope = Math.Sin(Math.PI * t);
+            double x = 0.0;
+            double y = 0.0;
+            switch (interaction)
+            {
+                case InteractionKind.HopLeft:
+                    x = -0.11 * envelope;
+                    break;
+                case InteractionKind.HopRight:
+                    x = 0.11 * envelope;
+                    break;
+                case InteractionKind.FigureEight:
+                    x = 0.09 * Math.Sin(Math.PI * 2.0 * t);
+                    y = -0.035 * Math.Sin(Math.PI * 4.0 * t);
+                    break;
+                case InteractionKind.Moonwalk:
+                    x = -0.10 * envelope;
+                    break;
+                case InteractionKind.Sneak:
+                    x = -0.07 * envelope;
+                    break;
+                case InteractionKind.Charge:
+                    x = 0.12 * envelope * envelope;
+                    break;
+            }
+            return new PointF((float)(x * canvasSize), (float)(y * canvasSize));
         }
 
         private void GetFrameTimeline(out Bitmap first, out Bitmap second, out float blend)

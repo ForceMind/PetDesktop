@@ -75,14 +75,23 @@ def main() -> None:
     assert archive.is_file(), "runtime frame archive is missing"
     with zipfile.ZipFile(archive) as runtime:
         names = runtime.namelist()
-        assert len(names) == 292, f"expected 292 packaged images, found {len(names)}"
+        assert len(names) == 222, f"expected 222 unique packaged images, found {len(names)}"
         assert len(set(names)) == len(names), "runtime archive has duplicate entries"
+        content_hashes = {
+            hashlib.sha256(runtime.read(name)).hexdigest() for name in names
+        }
+        assert len(content_hashes) == len(names), "runtime archive still stores duplicate PNG data"
+        for action_index in range(1, 33):
+            assert f"frame_action_{action_index:02d}_01.png" not in names
+            assert f"frame_action_{action_index:02d}_08.png" not in names
+        assert "frame_idle_00_01.png" not in names
+        assert not any(name.startswith("frame_idle_") and name.endswith("_07.png") for name in names)
 
     print("Authored frame validation passed")
     print("Idle: 5 regenerated appearances x 7 complete frames")
     print("Actions: 32 x 8 complete frames with exact neutral endpoints")
     print(f"Distinct action middle poses: {len(action_middle_hashes)}")
-    print("Runtime: no rig parts, accessory overlays, cross-fades, or non-square frames")
+    print("Runtime: 222 unique PNGs reconstruct 292 logical frames without quality loss")
 
 
 if __name__ == "__main__":

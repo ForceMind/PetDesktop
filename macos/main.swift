@@ -238,7 +238,9 @@ private final class PetView: NSView {
 
         let petRect = petCanvasRect(for: speech)
         let image = currentWholeCharacterFrame()
-        image.draw(in: petRect, from: .zero, operation: .sourceOver,
+        let motion = currentActionOffset(canvasSize: petRect.height)
+        let motionRect = petRect.offsetBy(dx: motion.x, dy: motion.y)
+        image.draw(in: motionRect, from: .zero, operation: .sourceOver,
                    fraction: 1, respectFlipped: true, hints: nil)
 
         if let speech {
@@ -258,6 +260,26 @@ private final class PetView: NSView {
         let elapsed = max(0, Date.timeIntervalSinceReferenceDate - idleStarted)
         let position = Int(floor(elapsed / 0.115)) % sequence.count
         return sequence[position]
+    }
+
+    private func currentActionOffset(canvasSize: CGFloat) -> NSPoint {
+        guard let index = actionIndex else { return .zero }
+        let t = min(1, max(0, actionProgress(for: index)))
+        let envelope = sine(.pi * t)
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        switch index {
+        case 8:  x = -0.11 * envelope       // hop left
+        case 9:  x =  0.11 * envelope       // hop right
+        case 15:                             // figure eight
+            x = 0.09 * sine(.pi * 2 * t)
+            y = 0.035 * sine(.pi * 4 * t)
+        case 22: x = -0.10 * envelope       // moonwalk
+        case 25: x = -0.07 * envelope       // sneak
+        case 26: x =  0.12 * envelope * envelope // charge
+        default: break
+        }
+        return NSPoint(x: x * canvasSize, y: y * canvasSize)
     }
 
     private func drawIdleLayers(fraction: CGFloat) {
@@ -1076,7 +1098,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         var idleOutfits: [[NSImage]] = []
         for name in idleNames {
             var sequence: [NSImage] = []
-            for number in 1...7 {
+            if name == "default" {
+                sequence.append(idleImage)
+            }
+            let firstStoredFrame = name == "default" ? 2 : 1
+            for number in firstStoredFrame...6 {
                 let path = frameRoot.appendingPathComponent("idle/\(name)/" +
                     String(format: "frame_%02d.png", number))
                 guard let image = NSImage(contentsOf: path) else {
@@ -1085,6 +1111,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 sequence.append(image)
             }
+            sequence.append(sequence[0])
             idleOutfits.append(sequence)
         }
 
@@ -1098,8 +1125,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         ]
         var actions: [[NSImage]] = []
         for name in actionNames {
-            var sequence: [NSImage] = []
-            for number in 1...8 {
+            var sequence: [NSImage] = [idleImage]
+            for number in 2...7 {
                 let path = frameRoot.appendingPathComponent("actions/\(name)/" +
                     String(format: "frame_%02d.png", number))
                 guard let image = NSImage(contentsOf: path) else {
@@ -1108,6 +1135,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 sequence.append(image)
             }
+            sequence.append(idleImage)
             actions.append(sequence)
         }
         let rigNames: [String] = []

@@ -82,7 +82,6 @@ $compilerArgs = @(
     "/out:$outputPath",
     "/win32icon:$iconPath",
     "/win32manifest:$(Join-Path $projectDir 'app.manifest')",
-    "/resource:$assetPath,CocoDesktopPet.coco.png",
     "/resource:$frameArchivePath,CocoDesktopPet.frame_animation.zip",
     '/reference:System.dll',
     '/reference:System.Core.dll',

@@ -34,11 +34,16 @@ jobs:
       - name: Verify seven click regions
         shell: pwsh
         run: ./tools/test_click_regions.ps1
+      - name: Prepare stable release filename
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item (Get-ChildItem dist -Filter '*.exe' | Select-Object -First 1).FullName release/CocoDesktopPet-Windows.exe
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: Coco桌宠-Windows
-          path: dist/*.exe
+          name: CocoDesktopPet-Windows
+          path: release/CocoDesktopPet-Windows.exe
           if-no-files-found: error
 
   macos:
@@ -51,12 +56,16 @@ jobs:
           chmod +x build_macos.command
           CI=1 ./build_macos.command
       - name: Verify universal architectures
-        run: lipo -archs "dist-macos/Coco桌宠.app/Contents/MacOS/CocoDesktopPet"
+        run: |
+          APP_PATH="$(find dist-macos -maxdepth 1 -name '*.app' -print -quit)"
+          lipo -archs "$APP_PATH/Contents/MacOS/CocoDesktopPet"
+      - name: Prepare stable release filename
+        run: cp dist-macos/*-macOS.zip dist-macos/CocoDesktopPet-macOS-universal.zip
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
-          name: Coco桌宠-macOS
-          path: dist-macos/Coco桌宠-macOS.zip
+          name: CocoDesktopPet-macOS
+          path: dist-macos/CocoDesktopPet-macOS-universal.zip
           if-no-files-found: error
 
   release:
