@@ -26,11 +26,11 @@
 
 ## 图标
 
-Windows 使用 `assets/icon/CocoDesktopPet.ico`；macOS 使用 `assets/icon/CocoApp.icns`；Web/PWA 使用 `assets/rig/app_icon.png`。图标与透明窗口动画资源相互独立。
+Windows 使用 `assets/icon/CocoDesktopPet.ico`；macOS 使用 `assets/icon/CocoApp.icns`；Web/PWA 从 `assets/rig/app_icon.png` 精确缩放生成 `web/icons/icon-192.png` 与 `web/icons/icon-512.png`。图标与透明窗口动画资源相互独立。
 
 ## Web 资源布局
 
-源码本地预览通过临时 `web/assets` 目录联接直接读取 `idle/` 与 `actions/`。Pages 发布不复制这些包含重复端点的 291 个文件，而是由 `tools/assemble_web.py` 解压 `runtime_frames.zip` 中的 222 张唯一 PNG，并将页面切换到 `runtime` 路径布局。两种布局指向相同像素，动作端点和换装循环没有差异。
+源码本地预览通过临时 `web/assets` 目录联接直接读取 `idle/` 与 `actions/`。Pages 发布不复制这些包含重复端点的 291 个文件，而是由 `tools/assemble_web.py` 把 `runtime_frames.zip` 中的 222 张唯一 PNG 解压到发布工件根目录的 `frames/`，并将页面切换到 `runtime` 路径布局。两种布局指向相同像素，动作端点和换装循环没有差异。
 
 ## 重新整理帧
 

@@ -2,6 +2,7 @@
   "use strict";
 
   const ASSET_ROOT = "./assets/frame_animation_v2";
+  const RUNTIME_ROOT = "./frames";
   const FRAME_LAYOUT = document.querySelector('meta[name="coco-frame-layout"]')?.content || "source";
   const SETTINGS_KEY = "coco-web-pet-v1";
   const FRAME_SIZE = 512;
@@ -14,7 +15,10 @@
     language: $("#languageSelect"), outfit: $("#outfitSelect"), background: $("#backgroundSelect"),
     size: $("#sizeRange"), sizeOutput: $("#sizeOutput"), action: $("#actionSelect"),
     play: $("#playButton"), random: $("#randomButton"), reset: $("#resetButton"),
-    pause: $("#pauseButton"), fullscreen: $("#fullscreenButton"), install: $("#installButton")
+    pause: $("#pauseButton"), fullscreen: $("#fullscreenButton"), install: $("#installButton"),
+    installPanel: $("#installPanelButton"), installTip: $("#installTip"),
+    installTipText: $("#installTipText"), installTipButton: $("#installTipButton"),
+    installTipClose: $("#installTipClose")
   };
   const context = ui.canvas.getContext("2d", { alpha: true });
   const imageCache = new Map();
@@ -34,6 +38,10 @@
       shortcuts: "Shortcuts: Space random · R reset · P pause", idleStatus: "Idle", pausedStatus: "Paused",
       queued: "Let me finish this move. Yours is next!", queueFull: "One move is already queued. Easy does it!",
       outfitReady: "New idle outfit ready!", loadingFailed: "That move could not be loaded. Please try again.",
+      installPrompt: "Install Coco for a faster, full-screen app experience.",
+      installIos: "On iPhone or iPad, tap Share, then choose Add to Home Screen.",
+      installManual: "Open your browser menu and choose Install app or Add to Home screen.",
+      installed: "Coco is installed and ready!",
       dialogueHead: "Careful with my blue feathers!", dialogueFaceLeft: "That cheek is ticklish!",
       dialogueFaceRight: "You found my playful side!", dialogueLeftPaw: "Left-paw high five!",
       dialogueRightPaw: "Right paw ready!", dialogueBody: "My belly is very ticklish!",
@@ -53,6 +61,10 @@
       shortcuts: "快捷键：空格随机 · R 复位 · P 暂停", idleStatus: "待机", pausedStatus: "已暂停",
       queued: "等我演完这个，下一个马上来～", queueFull: "已经排好一个动作啦，慢慢来～",
       outfitReady: "新的待机造型准备好啦！", loadingFailed: "这个动作没有加载成功，请再试一次。",
+      installPrompt: "安装 Coco，获得更快、更完整的全屏体验。",
+      installIos: "在 iPhone 或 iPad 上点击“分享”，再选择“添加到主屏幕”。",
+      installManual: "请打开浏览器菜单，选择“安装应用”或“添加到主屏幕”。",
+      installed: "Coco 已安装完成！",
       dialogueHead: "摸摸头，羽毛可别弄乱啦～", dialogueFaceLeft: "左脸有一点怕痒！",
       dialogueFaceRight: "右边被你发现啦！", dialogueLeftPaw: "左手击掌，High five！",
       dialogueRightPaw: "右手已经准备好啦！", dialogueBody: "哈哈，肚皮最怕痒了！",
@@ -140,7 +152,7 @@
   function idleFramePaths(outfitId) {
     if (FRAME_LAYOUT === "source") return framePaths(`idle/${outfitId}`, 7);
     const outfitIndex = data.outfits.findIndex((item) => item.id === outfitId);
-    const prefix = `${ASSET_ROOT}/runtime`;
+    const prefix = RUNTIME_ROOT;
     if (outfitIndex === 0) {
       return [
         `${prefix}/frame_neutral.png`,
@@ -156,7 +168,7 @@
   function actionFramePaths(action) {
     if (FRAME_LAYOUT === "source") return framePaths(`actions/${action.dir}`, 8);
     const actionIndex = data.actions.findIndex((item) => item.id === action.id) + 1;
-    const prefix = `${ASSET_ROOT}/runtime`;
+    const prefix = RUNTIME_ROOT;
     return [
       `${prefix}/frame_neutral.png`,
       ...Array.from({ length: 6 }, (_, index) =>
@@ -264,6 +276,41 @@
   function hideBubble() {
     ui.bubble.hidden = true;
     ui.bubble.textContent = "";
+  }
+
+  function isStandalone() {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  }
+
+  function isAppleMobile() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+
+  function showInstallTip(force = false) {
+    if (isStandalone()) return;
+    if (!force && sessionStorage.getItem("coco-install-tip-dismissed") === "1") return;
+    const apple = isAppleMobile();
+    ui.installTipText.textContent = apple ? t("installIos") : deferredInstallPrompt ? t("installPrompt") : t("installManual");
+    ui.installTipButton.hidden = apple || !deferredInstallPrompt;
+    ui.installTip.hidden = false;
+  }
+
+  function hideInstallTip() {
+    ui.installTip.hidden = true;
+    sessionStorage.setItem("coco-install-tip-dismissed", "1");
+  }
+
+  async function requestInstall() {
+    if (!deferredInstallPrompt) {
+      showInstallTip(true);
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    ui.install.hidden = true;
+    ui.installTip.hidden = true;
   }
 
   function regionAt(x, y) {
@@ -507,8 +554,25 @@
       if (!document.fullscreenEnabled) return;
       document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
     });
-    ui.install.addEventListener("click", async () => { if (deferredInstallPrompt) { deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; ui.install.hidden = true; } });
-    window.addEventListener("beforeinstallprompt", (event) => { event.preventDefault(); deferredInstallPrompt = event; ui.install.hidden = false; });
+    ui.install.addEventListener("click", requestInstall);
+    ui.installPanel.addEventListener("click", requestInstall);
+    ui.installTipButton.addEventListener("click", requestInstall);
+    ui.installTipClose.addEventListener("click", hideInstallTip);
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      ui.install.hidden = false;
+      if (!ui.installTip.hidden) showInstallTip(true);
+    });
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      ui.install.hidden = true;
+      ui.installPanel.hidden = true;
+      ui.installTipText.textContent = t("installed");
+      ui.installTipButton.hidden = true;
+      ui.installTip.hidden = false;
+      setTimeout(() => { ui.installTip.hidden = true; }, 2200);
+    });
     window.addEventListener("resize", () => { applyGeometryWithoutReset(); });
     window.addEventListener("keydown", (event) => {
       if (/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
@@ -552,6 +616,8 @@
       setPanel(state.panelOpen);
       applyGeometry();
       bindEvents();
+      if (isStandalone()) ui.installPanel.hidden = true;
+      else setTimeout(showInstallTip, 2600);
       if (!document.fullscreenEnabled) ui.fullscreen.hidden = true;
       await loadIdle(state.outfit);
       requestAnimationFrame(render);

@@ -1,5 +1,5 @@
-const CACHE_NAME = "coco-web-pet-v1";
-const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./data.json", "./manifest.webmanifest", "./assets/rig/app_icon.png"];
+const CACHE_NAME = "coco-web-pet-v2";
+const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./data.json", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));

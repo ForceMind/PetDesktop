@@ -4,11 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101a2d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Coco">
   <meta name="coco-frame-layout" content="source">
   <meta name="description" content="Coco, an interactive animated desktop pet for the web.">
   <title>Coco Web Pet</title>
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./assets/rig/app_icon.png">
+  <link rel="manifest" href="./manifest.webmanifest" type="application/manifest+json">
+  <link rel="icon" href="./icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -60,11 +65,17 @@
           <button id="randomButton" class="ghost" data-i18n="randomMove">Random move</button>
           <button id="resetButton" class="ghost" data-i18n="resetPosition">Reset position</button>
           <button id="pauseButton" class="ghost" data-i18n="pause">Pause</button>
+          <button id="installPanelButton" class="ghost" data-i18n="install">Install</button>
         </section>
 
         <footer><span data-i18n="shortcuts">Shortcuts: Space random · R reset · P pause</span></footer>
       </aside>
     </main>
+  </div>
+  <div id="installTip" class="install-tip" role="status" hidden>
+    <span id="installTipText"></span>
+    <button id="installTipButton" class="primary" data-i18n="install">Install</button>
+    <button id="installTipClose" class="icon-button install-tip-close" aria-label="Close">×</button>
   </div>
   <script src="./app.js" defer></script>
 </body>

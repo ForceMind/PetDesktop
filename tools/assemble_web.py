@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a deduplicated static GitHub Pages artifact."""
+"""Assemble a deduplicated static Pages artifact."""
 
 import argparse
 import shutil
@@ -10,8 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
 ARCHIVE = ROOT / "assets" / "frame_animation_v2" / "runtime_frames.zip"
-ICON = ROOT / "assets" / "rig" / "app_icon.png"
-SHELL_FILES = ("index.html", "styles.css", "app.js", "data.json", "manifest.webmanifest", "sw.js")
+SHELL_FILES = ("index.html", "styles.css", "app.js", "data.json", "manifest.webmanifest", "sw.js", "_headers")
 
 
 def assemble(destination: Path) -> None:
@@ -30,7 +29,7 @@ def assemble(destination: Path) -> None:
         raise RuntimeError("web frame-layout marker is missing")
     index_path.write_text(index.replace(marker, marker.replace("source", "runtime")), encoding="utf-8")
 
-    runtime = destination / "assets" / "frame_animation_v2" / "runtime"
+    runtime = destination / "frames"
     runtime.mkdir(parents=True)
     with zipfile.ZipFile(ARCHIVE) as archive:
         for member in archive.infolist():
@@ -39,14 +38,15 @@ def assemble(destination: Path) -> None:
                 raise RuntimeError(f"unsafe runtime archive entry: {member.filename}")
             archive.extract(member, runtime)
 
-    icon_target = destination / "assets" / "rig" / "app_icon.png"
-    icon_target.parent.mkdir(parents=True)
-    shutil.copy2(ICON, icon_target)
+    shutil.copytree(WEB / "icons", destination / "icons")
     (destination / ".nojekyll").touch()
 
     frame_count = len(list(runtime.glob("*.png")))
     if frame_count != 222:
         raise RuntimeError(f"expected 222 unique runtime frames, found {frame_count}")
+    neutral = runtime / "frame_neutral.png"
+    if not neutral.is_file() or neutral.stat().st_size == 0:
+        raise RuntimeError("runtime neutral frame is missing or empty")
     print(f"Web artifact assembled: {destination} ({frame_count} unique frames)")
 
 

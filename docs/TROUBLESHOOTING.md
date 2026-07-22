@@ -16,6 +16,14 @@ v1.8.0 起，Windows 必须直接调用 `ApplyLayeredBitmap(frame, frameX, frame
 
 不要使用 `file://`。从仓库根目录运行 `tools/prepare_web_preview.ps1` 与 `python -m http.server 8080`，再访问 `http://localhost:8080/web/`。预览结束可运行脚本的 `-Remove` 参数，仅删除临时目录联接。
 
+## Cloudflare Pages 提示 frame_neutral.png 无法加载
+
+请使用 `py tools\package_cloudflare.py <输出.zip>` 生成新包，不要使用 Windows PowerShell 的 `Compress-Archive`：它会把 ZIP 内部路径写成 `frames\frame_neutral.png`，Cloudflare 上的浏览器请求 `frames/frame_neutral.png` 时可能得到 404。专用脚本强制使用 `/` 并检查 ZIP 根目录直接包含 `index.html`、`frames/frame_neutral.png` 和全部 222 张帧。部署后直接访问站点的 `/frames/frame_neutral.png`，应返回图片而不是 404；重新部署后关闭旧标签页再打开，让新版 Service Worker 接管。
+
+## 网页不提示安装
+
+必须通过 HTTPS（或开发用 localhost）访问，不能使用隐私模式。Chromium 在 manifest、Service Worker、192px/512px 图标和用户参与条件满足后才提供原生安装提示，因此网页同时在控制面板和页面提示条提供安装入口。iPhone/iPad 不支持 Chromium 的安装提示事件，请使用 Safari 的“分享 → 添加到主屏幕”。如果刚更新站点，关闭旧标签页后重新打开，确保新版 Service Worker 已接管。
+
 ## 角色闪烁或出现重影
 
 确认运行的是 v1.7.0 或更新版本，并重新执行 `build.ps1 -Clean`。新版一次只绘制一张完整帧，不应出现交叉淡入。若仍闪烁，运行 `py tools/test_authored_frames.py` 检查帧数量和精确端点。

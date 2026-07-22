@@ -22,7 +22,7 @@ chmod +x build_macos.command
 
 脚本生成 `dist-macos/Coco Desktop Pet.app` 与 `dist-macos/CocoDesktopPet-macOS.zip`，并尽可能合并 Apple Silicon 与 Intel 二进制。默认应用元数据为英文，`zh-Hans.lproj` 与 `zh-Hant.lproj` 仅在简体或繁体中文系统中提供中文显示名称。未配置开发者证书时使用临时本地签名。
 
-## Web / GitHub Pages
+## Web / Static Pages
 
 本地预览不复制动画资源，而是在 `web/assets` 创建指向仓库 `assets` 的临时目录联接：
 
@@ -33,7 +33,15 @@ python -m http.server 8080
 .\tools\prepare_web_preview.ps1 -Remove
 ```
 
-不要直接双击 `web/index.html`，因为 `file://` 无法正常读取 JSON 或注册 Service Worker。`.github/workflows/pages.yml` 会校验 Web 版，调用 `tools/assemble_web.py` 把 `web/`、无损去重后的 222 张唯一帧和图标组装成临时工件，再由 GitHub Pages 发布。仓库需在 **Settings → Pages → Source** 选择一次 **GitHub Actions**。
+不要直接双击 `web/index.html`，因为 `file://` 无法正常读取 JSON 或注册 Service Worker。`tools/assemble_web.py` 会把 `web/`、无损去重后的 222 张唯一帧和 PWA 图标组装成可部署目录；动画位于工件根目录的 `frames/`，脚本会强制校验 `frames/frame_neutral.png`。Cloudflare Pages Direct Upload 可直接上传该目录或根层级正确的 ZIP；部署后应先访问 `/frames/frame_neutral.png`，确认返回 200。GitHub Pages 则由 `.github/workflows/pages.yml` 调用同一脚本发布。
+
+Cloudflare ZIP 必须使用专用脚本生成，不能使用 Windows PowerShell 的 `Compress-Archive`，后者会在 ZIP 内写入反斜杠路径，Cloudflare 解压后可能导致资源 404：
+
+```powershell
+py tools\package_cloudflare.py dist\CocoWebPet-Cloudflare-Pages.zip
+```
+
+PWA 安装要求 HTTPS（`localhost` 仅用于开发）、有效 manifest、Service Worker，以及 192×192 和 512×512 图标。Chromium 会在满足条件后启用网页内安装按钮；iPhone/iPad 不提供该事件，需要在 Safari 的分享菜单选择“添加到主屏幕”。
 
 ## 发布前检查
 
