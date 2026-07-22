@@ -22,6 +22,8 @@ py tools\test_authored_frames.py
 ```powershell
 .\tools\test_animation_continuity.ps1
 .\tools\test_click_regions.ps1
+.\tools\test_system_language.ps1
+.\tools\test_autonomous_idle.ps1
 .\build.ps1 -Clean
 .\smoke_test.ps1 -Headless
 ```
@@ -39,7 +41,7 @@ py tools\validate_macos_source.py
 ## 人工验收
 
 1. 启动时 Coco 双臂自然放下，不是招手姿势。
-2. 静置观察至少 20 秒，确认呼吸、眨眼和小动作持续循环且无闪烁。
+2. 静置观察至少 45 秒，确认角色大部分时间自然站立、约每 3–8 秒播放一次待机小动作，并会偶尔自动表演且无闪烁。
 3. 连续点击不同部位，确认动作明显不同，手脚真的改变姿势。
 4. 逐一观察 32 个动作，结尾必须自然回到站立，不跳帧或淡入重影。
 5. 检查抬手、伸展、舞蹈等动作的肩膀，不能出现白缝、断层或额外肢体。
@@ -49,11 +51,11 @@ py tools\validate_macos_source.py
 9. 中英文长对白均应完整显示，气泡不遮挡角色。
 10. 非中文系统应为纯英文，右键菜单没有语言切换且没有任何可见中文。
 11. 中文系统应默认中文并显示中文/English 切换；切到 English 后菜单和对白应为英文。
+12. Windows 双击 EXE、macOS 双击 App 均可直接运行，应用图标正常。
 
 Windows 可运行 `tools/test_system_language.ps1`，它分别模拟 `en-US` 与 `zh-CN` UI Culture，并验证默认语言、语言菜单可见性和英文菜单中不存在中文字符。macOS 的对应源代码与本地化包约束由 `tools/validate_macos_source.py` 检查。
 
 `tools/test_autonomous_idle.ps1` 验证安静待机保持站立首帧、待机小动作会播放中间帧、超时后会自动表演，以及鼠标拖动时不会触发自动动作。
-10. Windows 双击 EXE、macOS 双击 App 均可直接运行，应用图标正常。
 
 ## 诊断帧
 

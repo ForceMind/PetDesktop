@@ -31,6 +31,8 @@ py tools\prepare_frame_animation_v2.py
 py tools\test_authored_frames.py
 py tools\validate_macos_source.py
 .\tools\test_click_regions.ps1
+.\tools\test_system_language.ps1
+.\tools\test_autonomous_idle.ps1
 .\smoke_test.ps1 -Headless
 ```
 
@@ -44,7 +46,7 @@ py tools\validate_macos_source.py
 
 ```powershell
 git add --all
-git commit -m "Deduplicate frames and restore authored motion paths"
+git commit -m "Describe the release change"
 git push origin main
 git tag -a v1.7.0 -m "Coco Desktop Pet v1.7.0"
 git push origin v1.7.0
