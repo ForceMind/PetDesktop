@@ -1,5 +1,21 @@
 # 故障排查
 
+## Windows 滚轮缩放抖动或闪烁
+
+v1.8.0 起，Windows 必须直接调用 `ApplyLayeredBitmap(frame, frameX, frameY)`，由 `UpdateLayeredWindow` 同时提交像素、位置与尺寸。若在 `RenderFrame` 中重新加入 `SetBounds`，旧透明位图会先被窗口系统拉伸，问题会复现。运行 `tools/test_windows_layered_resize.ps1` 检查这一约束。滚轮分支也不应每格创建新气泡；菜单缩放提示不受影响。
+
+## 快速点击会切断当前动作
+
+点击入口必须进入 `RequestInteraction`（macOS/Web 为对应队列入口），而不是直接调用播放函数。队列容量固定为 1：当前动作完成后显示约 100ms 站立帧再继续。运行 `tools/test_interaction_queue.ps1` 检查 Windows/macOS 约束，`tools/test_web.py` 检查 Web 状态机。
+
+## GitHub Pages 没有发布或显示 404
+
+先到仓库 **Settings → Pages**，把 Source 设为 **GitHub Actions**，再手动运行 `Deploy Coco Web Pet` 工作流。站点必须使用相对路径，项目地址是 `https://forcemind.github.io/PetDesktop/`，不能把资源写成站点根路径 `/assets/...`。Pages 工件由工作流临时组装，不应把 `web/assets` 提交到 Git。
+
+## Web 本地打开后没有角色
+
+不要使用 `file://`。从仓库根目录运行 `tools/prepare_web_preview.ps1` 与 `python -m http.server 8080`，再访问 `http://localhost:8080/web/`。预览结束可运行脚本的 `-Remove` 参数，仅删除临时目录联接。
+
 ## 角色闪烁或出现重影
 
 确认运行的是 v1.7.0 或更新版本，并重新执行 `build.ps1 -Clean`。新版一次只绘制一张完整帧，不应出现交叉淡入。若仍闪烁，运行 `py tools/test_authored_frames.py` 检查帧数量和精确端点。

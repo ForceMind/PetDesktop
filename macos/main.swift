@@ -71,6 +71,8 @@ private final class PetView: NSView {
     private var animationTimer: Timer?
     private var actionIndex: Int?
     private var actionStarted = Date.timeIntervalSinceReferenceDate
+    private var queuedAction: (index: Int, region: ClickRegion)?
+    private var queuedActionReadyAt = Date.timeIntervalSinceReferenceDate
     private var speech: String?
     private var language: DialogueLanguage = cocoSystemUsesChineseUI ? .chinese : .english
     private var outfit: OutfitKind = .standard
@@ -198,10 +200,17 @@ private final class PetView: NSView {
                 speech = nil
                 nextIdleGestureAt = now + Double.random(in: 3.0...8.0)
                 nextAutomaticActionAt = now + Double.random(in: 18.0...36.0)
+                if queuedAction != nil {
+                    queuedActionReadyAt = now + 0.10
+                }
             }
         }
         if actionIndex == nil {
-            if !mouseIsDown && now >= nextAutomaticActionAt {
+            if let queued = queuedAction, now >= queuedActionReadyAt {
+                queuedAction = nil
+                startAction(index: queued.index, region: queued.region, showSpeech: true)
+                return
+            } else if !mouseIsDown && now >= nextAutomaticActionAt {
                 triggerAutomaticAction()
             } else {
                 updateIdleGesture(now: now)
@@ -914,7 +923,21 @@ private final class PetView: NSView {
     private func triggerAction(at point: NSPoint) {
         let region = clickRegion(at: point)
         let index = actionForRegion(region)
-        startAction(index: index, region: region, showSpeech: true)
+        if actionIndex == nil && queuedAction == nil {
+            startAction(index: index, region: region, showSpeech: true)
+        } else if queuedAction == nil {
+            queuedAction = (index: index, region: region)
+            performLayoutChange {
+                speech = localized("等我演完这个，下一个马上来～",
+                                   "Let me finish this move. Yours is next!")
+            }
+        } else {
+            performLayoutChange {
+                speech = localized("已经排好一个动作啦，慢慢来～",
+                                   "One move is already queued. Easy does it!")
+            }
+        }
+        needsDisplay = true
     }
 
     private func startAction(index: Int, region: ClickRegion, showSpeech: Bool) {

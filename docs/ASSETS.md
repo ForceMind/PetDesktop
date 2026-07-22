@@ -12,7 +12,7 @@
 - `idle/default`、`idle/red_scarf`、`idle/blue_cape`、`idle/round_glasses`、`idle/sailor_cap`：5 套完整待机序列，每套 7 帧。
 - `actions/01_jump` 至 `actions/32_sleepy`：32 套默认外观互动序列，每套 8 帧。
 - `manifest.json`：帧尺寸、数量、编号和端点约定。
-- `runtime_frames.zip`：Windows 嵌入资源与发布构建输入；只保存 222 张无重复 PNG，并还原为 292 个逻辑帧。
+- `runtime_frames.zip`：Windows 嵌入资源、macOS 打包和 Web Pages 发布输入；只保存 222 张无重复 PNG，并在各端还原为 292 个逻辑帧。
 - `continuity_baseline_preview.png`：连续性人工检查预览。
 - `source`：创作阶段的原始生成表与透明处理结果。
 
@@ -26,7 +26,11 @@
 
 ## 图标
 
-Windows 使用 `assets/icon/CocoDesktopPet.ico`；macOS 使用 `assets/icon/CocoApp.icns`。图标与透明窗口动画资源相互独立。
+Windows 使用 `assets/icon/CocoDesktopPet.ico`；macOS 使用 `assets/icon/CocoApp.icns`；Web/PWA 使用 `assets/rig/app_icon.png`。图标与透明窗口动画资源相互独立。
+
+## Web 资源布局
+
+源码本地预览通过临时 `web/assets` 目录联接直接读取 `idle/` 与 `actions/`。Pages 发布不复制这些包含重复端点的 291 个文件，而是由 `tools/assemble_web.py` 解压 `runtime_frames.zip` 中的 222 张唯一 PNG，并将页面切换到 `runtime` 路径布局。两种布局指向相同像素，动作端点和换装循环没有差异。
 
 ## 重新整理帧
 

@@ -8,3 +8,5 @@ assets/frame_animation/source/actions_*_v2_green.png
 *.suo
 .DS_Store
 __pycache__/
+web/assets/
+.pages-dist/

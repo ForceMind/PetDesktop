@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101a2d">
+  <meta name="coco-frame-layout" content="source">
+  <meta name="description" content="Coco, an interactive animated desktop pet for the web.">
+  <title>Coco Web Pet</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/rig/app_icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">C</span><div><strong>Coco Web Pet</strong><small data-i18n="subtitle">Interactive web companion</small></div></div>
+      <div class="top-actions">
+        <button id="installButton" class="ghost" hidden data-i18n="install">Install</button>
+        <button id="fullscreenButton" class="ghost" data-i18n="fullscreen">Fullscreen</button>
+        <button id="panelButton" class="primary" aria-expanded="true" data-i18n="controls">Controls</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="stage" class="stage background-desk" aria-label="Coco play area">
+        <div class="stage-hint" data-i18n="hint">Drag Coco · click different areas · use the wheel to resize</div>
+        <div id="pet" class="pet" tabindex="0" role="button" aria-label="Coco">
+          <canvas id="petCanvas" width="512" height="512"></canvas>
+          <div id="speechBubble" class="speech-bubble" role="status" aria-live="polite" hidden></div>
+          <div id="loadingBadge" class="loading-badge" hidden data-i18n="loading">Loading move…</div>
+        </div>
+        <div class="stage-status"><span id="statusText">Idle</span><span id="frameText">1 / 7</span></div>
+      </section>
+
+      <aside id="controlPanel" class="control-panel">
+        <div class="panel-heading"><div><small data-i18n="playLab">PLAY LAB</small><h1 data-i18n="panelTitle">Make Coco your own</h1></div><button id="closePanelButton" class="icon-button" aria-label="Close">×</button></div>
+
+        <section class="control-section">
+          <h2 data-i18n="behavior">Behavior</h2>
+          <label class="toggle-row"><span><strong data-i18n="autoShow">Auto performances</strong><small data-i18n="autoShowHelp">Coco occasionally performs on its own</small></span><input id="autoToggle" type="checkbox" checked><i></i></label>
+          <label class="toggle-row"><span><strong data-i18n="idleMotion">Idle gestures</strong><small data-i18n="idleMotionHelp">Subtle movement between quiet stands</small></span><input id="idleToggle" type="checkbox" checked><i></i></label>
+          <label class="toggle-row"><span><strong data-i18n="dialogue">Dialogue</strong><small data-i18n="dialogueHelp">Show adaptive speech bubbles</small></span><input id="dialogueToggle" type="checkbox" checked><i></i></label>
+        </section>
+
+        <section class="control-section two-column">
+          <label><span data-i18n="language">Language</span><select id="languageSelect"><option value="auto">Auto</option><option value="zh">中文</option><option value="en">English</option></select></label>
+          <label><span data-i18n="outfit">Idle outfit</span><select id="outfitSelect"></select></label>
+          <label><span data-i18n="background">Background</span><select id="backgroundSelect"><option value="desk" data-i18n="bgDesk">Midnight desk</option><option value="sky" data-i18n="bgSky">Soft sky</option><option value="paper" data-i18n="bgPaper">Warm paper</option><option value="checker" data-i18n="bgChecker">Transparent grid</option></select></label>
+          <label><span data-i18n="size">Pet size</span><output id="sizeOutput">320 px</output><input id="sizeRange" type="range" min="160" max="520" step="10" value="320"></label>
+        </section>
+
+        <section class="control-section">
+          <div class="section-title"><h2 data-i18n="actionStudio">Action studio</h2><span id="actionCount">32</span></div>
+          <div class="action-picker"><select id="actionSelect"></select><button id="playButton" class="primary" data-i18n="play">Play</button></div>
+          <p class="microcopy" data-i18n="queueHelp">Fast clicks queue one move. Coco always finishes and returns to standing before the next begins.</p>
+        </section>
+
+        <section class="control-section quick-actions">
+          <button id="randomButton" class="ghost" data-i18n="randomMove">Random move</button>
+          <button id="resetButton" class="ghost" data-i18n="resetPosition">Reset position</button>
+          <button id="pauseButton" class="ghost" data-i18n="pause">Pause</button>
+        </section>
+
+        <footer><span data-i18n="shortcuts">Shortcuts: Space random · R reset · P pause</span><a href="https://github.com/ForceMind/PetDesktop" target="_blank" rel="noreferrer">GitHub</a></footer>
+      </aside>
+    </main>
+  </div>
+  <script src="./app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{
+  "outfits": [
+    { "id": "default", "zh": "经典造型", "en": "Classic" },
+    { "id": "red_scarf", "zh": "红围巾", "en": "Red scarf" },
+    { "id": "blue_cape", "zh": "蓝披风", "en": "Blue cape" },
+    { "id": "round_glasses", "zh": "圆眼镜", "en": "Round glasses" },
+    { "id": "sailor_cap", "zh": "水手帽", "en": "Sailor cap" }
+  ],
+  "actions": [
+    { "id": "jump", "dir": "01_jump", "zh": "跳跃", "en": "Jump", "duration": 900, "lineZh": "起飞！今天也要跳得高高的～", "lineEn": "Up we go!" },
+    { "id": "squash", "dir": "02_squash", "zh": "压扁回弹", "en": "Squash", "duration": 780, "lineZh": "啪叽一下，我还能弹回来！", "lineEn": "Squish, bounce, and back again!" },
+    { "id": "shake", "dir": "03_shake", "zh": "左右抖动", "en": "Shake", "duration": 820, "lineZh": "抖一抖，烦恼全甩掉。", "lineEn": "Shake the worries away!" },
+    { "id": "bounce", "dir": "04_bounce", "zh": "弹跳", "en": "Bounce", "duration": 920, "lineZh": "弹弹弹，心情也变轻啦！", "lineEn": "Boing! That feels wonderful!" },
+    { "id": "nod", "dir": "05_nod", "zh": "点头", "en": "Nod", "duration": 880, "lineZh": "嗯嗯，你说得很有道理。", "lineEn": "Yes, I completely agree." },
+    { "id": "sway", "dir": "06_sway", "zh": "摇摆", "en": "Sway", "duration": 1000, "lineZh": "跟着节奏摇摆一下～", "lineEn": "Sway with the rhythm." },
+    { "id": "spin", "dir": "07_spin", "zh": "旋转", "en": "Spin", "duration": 1050, "lineZh": "看我的顺时针小旋风！", "lineEn": "Here comes a tiny whirlwind!" },
+    { "id": "reverse_spin", "dir": "08_reverse_spin", "zh": "反向旋转", "en": "Reverse spin", "duration": 1050, "lineZh": "反方向也完全没问题。", "lineEn": "Reverse spin, perfectly done!" },
+    { "id": "hop_left", "dir": "09_hop_left", "zh": "左跳", "en": "Hop left", "duration": 920, "lineZh": "向左探索一小步。", "lineEn": "One curious step to the left." },
+    { "id": "hop_right", "dir": "10_hop_right", "zh": "右跳", "en": "Hop right", "duration": 920, "lineZh": "右边是不是藏着零食？", "lineEn": "Could there be snacks on the right?" },
+    { "id": "tiptoe", "dir": "11_tiptoe", "zh": "踮脚", "en": "Tiptoe", "duration": 1050, "lineZh": "轻轻地，别吵醒桌面。", "lineEn": "Quiet little tiptoes." },
+    { "id": "stretch", "dir": "12_stretch", "zh": "伸懒腰", "en": "Stretch", "duration": 960, "lineZh": "伸个懒腰，满格出发！", "lineEn": "A good stretch fixes everything!" },
+    { "id": "shrink", "dir": "13_shrink", "zh": "缩小", "en": "Shrink", "duration": 900, "lineZh": "缩成一小团，省点能量。", "lineEn": "Tiny mode activated." },
+    { "id": "peek_left", "dir": "14_peek_left", "zh": "左探头", "en": "Peek left", "duration": 920, "lineZh": "左边有什么？让我看看。", "lineEn": "Let me peek over here." },
+    { "id": "peek_right", "dir": "15_peek_right", "zh": "右探头", "en": "Peek right", "duration": 920, "lineZh": "右边也要认真检查。", "lineEn": "Now let me check the other side." },
+    { "id": "figure_eight", "dir": "16_figure_eight", "zh": "八字舞步", "en": "Figure eight", "duration": 1150, "lineZh": "走一个漂亮的八字路线！", "lineEn": "A perfect figure eight!" },
+    { "id": "tremble", "dir": "17_tremble", "zh": "颤动", "en": "Tremble", "duration": 780, "lineZh": "能量过载，嗡嗡嗡！", "lineEn": "Too much energy to stay still!" },
+    { "id": "proud", "dir": "18_proud", "zh": "神气", "en": "Proud", "duration": 1000, "lineZh": "今天的我也很神气。", "lineEn": "Looking rather splendid today." },
+    { "id": "bow", "dir": "19_bow", "zh": "鞠躬", "en": "Bow", "duration": 950, "lineZh": "谢谢你的陪伴，请多关照！", "lineEn": "Thank you for being here." },
+    { "id": "backflip", "dir": "20_backflip", "zh": "后空翻", "en": "Backflip", "duration": 1050, "lineZh": "后空翻，稳稳落地！", "lineEn": "Backflip and a clean landing!" },
+    { "id": "frontflip", "dir": "21_frontflip", "zh": "前空翻", "en": "Front flip", "duration": 1150, "lineZh": "前空翻也要有始有终。", "lineEn": "Forward flip, safely home!" },
+    { "id": "dance", "dir": "22_dance", "zh": "跳舞", "en": "Dance", "duration": 1180, "lineZh": "音乐在哪里？Dance time！", "lineEn": "The dance floor is wherever I am." },
+    { "id": "moonwalk", "dir": "23_moonwalk", "zh": "太空步", "en": "Moonwalk", "duration": 1100, "lineZh": "月球步启动，smooth～", "lineEn": "Moonwalk mode activated." },
+    { "id": "heartbeat", "dir": "24_heartbeat", "zh": "心跳", "en": "Heartbeat", "duration": 1050, "lineZh": "扑通扑通，是开心的声音。", "lineEn": "That is a happy heartbeat." },
+    { "id": "dizzy", "dir": "25_dizzy", "zh": "眩晕", "en": "Dizzy", "duration": 1100, "lineZh": "转晕了，让星星休息一下。", "lineEn": "A little dizzy, still adorable." },
+    { "id": "sneak", "dir": "26_sneak", "zh": "潜行", "en": "Sneak", "duration": 1150, "lineZh": "嘘，我正在秘密行动。", "lineEn": "Shh, this is a secret mission." },
+    { "id": "charge", "dir": "27_charge", "zh": "蓄力冲刺", "en": "Charge", "duration": 1080, "lineZh": "蓄力完成，准备冲呀！", "lineEn": "Fully charged and ready to go!" },
+    { "id": "float", "dir": "28_float", "zh": "漂浮", "en": "Float", "duration": 1200, "lineZh": "轻飘飘，像一朵小云。", "lineEn": "Floating like a tiny cloud." },
+    { "id": "stomp", "dir": "29_stomp", "zh": "跺脚", "en": "Stomp", "duration": 920, "lineZh": "咚！桌面震感测试完成。", "lineEn": "Stomp test complete!" },
+    { "id": "laugh", "dir": "30_laugh", "zh": "大笑", "en": "Laugh", "duration": 1050, "lineZh": "哈哈哈，今天真有趣！", "lineEn": "That was genuinely funny!" },
+    { "id": "surprise", "dir": "31_surprise", "zh": "惊讶", "en": "Surprise", "duration": 920, "lineZh": "哇！被你发现啦！", "lineEn": "Whoa! You found me!" },
+    { "id": "sleepy", "dir": "32_sleepy", "zh": "犯困", "en": "Sleepy", "duration": 1300, "lineZh": "先眯一会儿，待会见……", "lineEn": "A short nap, then more adventures." }
+  ],
+  "regions": {
+    "head": ["nod", "proud", "surprise", "float", "sleepy"],
+    "faceLeft": ["peek_left", "shake", "dizzy", "sway"],
+    "faceRight": ["peek_right", "reverse_spin", "laugh", "heartbeat"],
+    "leftPaw": ["hop_left", "bow", "dance", "moonwalk"],
+    "rightPaw": ["hop_right", "charge", "spin", "figure_eight"],
+    "body": ["squash", "heartbeat", "laugh", "shrink", "tremble", "sneak", "stretch"],
+    "feet": ["jump", "bounce", "stomp", "tiptoe", "backflip", "frontflip"]
+  },
+  "automatic": ["nod", "sway", "tiptoe", "stretch", "peek_left", "peek_right", "proud", "bow", "dance", "heartbeat", "laugh", "sleepy"]
+}

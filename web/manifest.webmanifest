@@ -1,0 +1,19 @@
+{
+  "name": "Coco Web Pet",
+  "short_name": "Coco",
+  "description": "An interactive animated Coco companion with 32 authored actions.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#101a2d",
+  "theme_color": "#101a2d",
+  "icons": [
+    {
+      "src": "./assets/rig/app_icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

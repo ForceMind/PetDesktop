@@ -206,6 +206,9 @@ namespace CocoDesktopPet
         private InteractionKind interaction = InteractionKind.None;
         private DateTime interactionStarted;
         private int interactionIndex;
+        private InteractionKind queuedInteraction = InteractionKind.None;
+        private ClickRegion queuedInteractionRegion = ClickRegion.Body;
+        private DateTime queuedInteractionReadyAt;
         private DialogueLanguage dialogueLanguage = DialogueLanguage.English;
         private OutfitKind outfit = OutfitKind.Default;
         private DateTime idleStarted;
@@ -880,7 +883,7 @@ namespace CocoDesktopPet
                 if (lastCharacterBounds.Contains(e.Location))
                 {
                     ClickRegion region = ClassifyClickRegion(e.Location);
-                    TriggerInteraction(PickInteractionForRegion(region), region);
+                    RequestInteraction(PickInteractionForRegion(region), region);
                 }
             }
             else
@@ -913,9 +916,18 @@ namespace CocoDesktopPet
             petScreenY = oldBottom - petHeight;
             ClampPetToScreen();
             UpdateSizeMenuChecks();
-            ShowBubble(fromMenu
-                ? LocalizedMessage("大小调好啦！", "Size updated!")
-                : LocalizedMessage("滚一滚，我就变身～", "Scroll and watch me resize!"), 1500);
+            if (fromMenu)
+            {
+                ShowBubble(LocalizedMessage("大小调好啦！", "Size updated!"), 1500);
+            }
+            else
+            {
+                // A wheel notch should only resize the character. Showing a new
+                // bubble here also changes the layered-window width, which makes
+                // rapid Windows wheel input appear to jump sideways.
+                animationTimer.Start();
+                RenderFrame();
+            }
         }
 
         private void UpdatePetDimensions()
@@ -1006,6 +1018,31 @@ namespace CocoDesktopPet
         private void TriggerInteraction(InteractionKind selectedInteraction, ClickRegion region)
         {
             TriggerInteraction(selectedInteraction, region, true);
+        }
+
+        private void RequestInteraction(InteractionKind selectedInteraction, ClickRegion region)
+        {
+            if (interaction == InteractionKind.None &&
+                queuedInteraction == InteractionKind.None)
+            {
+                TriggerInteraction(selectedInteraction, region);
+                return;
+            }
+
+            if (queuedInteraction == InteractionKind.None)
+            {
+                queuedInteraction = selectedInteraction;
+                queuedInteractionRegion = region;
+                ShowBubble(LocalizedMessage(
+                    "等我演完这个，下一个马上来～",
+                    "Let me finish this move. Yours is next!"), 1800);
+            }
+            else
+            {
+                ShowBubble(LocalizedMessage(
+                    "已经排好一个动作啦，慢慢来～",
+                    "One move is already queued. Easy does it!"), 1800);
+            }
         }
 
         private void TriggerInteraction(InteractionKind selectedInteraction, ClickRegion region,
@@ -1201,6 +1238,13 @@ namespace CocoDesktopPet
                 Text = UiText("Coco 桌宠 - 待机", "Coco Desktop Pet - Idle");
                 nextIdleGestureAt = now.AddMilliseconds(3000 + random.Next(5000));
                 nextAutomaticInteractionAt = now.AddMilliseconds(18000 + random.Next(18000));
+                if (queuedInteraction != InteractionKind.None)
+                {
+                    // Let the neutral standing frame remain visible for a few
+                    // ticks before the queued action starts. This preserves the
+                    // authored end-frame -> idle -> next-action handoff.
+                    queuedInteractionReadyAt = now.AddMilliseconds(100);
+                }
             }
 
             if (!string.IsNullOrEmpty(bubbleText) && now >= bubbleUntil)
@@ -1210,6 +1254,15 @@ namespace CocoDesktopPet
 
             if (interaction == InteractionKind.None)
             {
+                if (queuedInteraction != InteractionKind.None &&
+                    now >= queuedInteractionReadyAt)
+                {
+                    InteractionKind nextInteraction = queuedInteraction;
+                    ClickRegion nextRegion = queuedInteractionRegion;
+                    queuedInteraction = InteractionKind.None;
+                    TriggerInteraction(nextInteraction, nextRegion);
+                    return;
+                }
                 if (!mouseIsDown && now >= nextAutomaticInteractionAt)
                 {
                     TriggerAutomaticInteraction();
@@ -1371,12 +1424,11 @@ namespace CocoDesktopPet
                 }
             }
 
-            Rectangle nextBounds = new Rectangle(frameX, frameY, frameWidth, frameHeight);
-            if (Bounds != nextBounds)
-            {
-                SetBounds(frameX, frameY, frameWidth, frameHeight, BoundsSpecified.All);
-            }
-            ApplyLayeredBitmap(frame);
+            // UpdateLayeredWindow commits the new pixels, position and size in
+            // one native operation. Calling SetBounds first exposes the old
+            // layered surface at the new size and causes a visible Windows-only
+            // stretch/flicker during wheel resizing.
+            ApplyLayeredBitmap(frame, frameX, frameY);
 
             Bitmap oldFrame = lastFrame;
             lastFrame = frame;
@@ -2506,7 +2558,7 @@ namespace CocoDesktopPet
             return path;
         }
 
-        private void ApplyLayeredBitmap(Bitmap bitmap)
+        private void ApplyLayeredBitmap(Bitmap bitmap, int destinationX, int destinationY)
         {
             IntPtr screenDc = NativeMethods.GetDC(IntPtr.Zero);
             IntPtr memoryDc = NativeMethods.CreateCompatibleDC(screenDc);
@@ -2518,7 +2570,7 @@ namespace CocoDesktopPet
                 hBitmap = bitmap.GetHbitmap(Color.FromArgb(0));
                 oldBitmap = NativeMethods.SelectObject(memoryDc, hBitmap);
 
-                NativeMethods.Point destination = new NativeMethods.Point(Left, Top);
+                NativeMethods.Point destination = new NativeMethods.Point(destinationX, destinationY);
                 NativeMethods.Size size = new NativeMethods.Size(bitmap.Width, bitmap.Height);
                 NativeMethods.Point source = new NativeMethods.Point(0, 0);
                 NativeMethods.BlendFunction blend = new NativeMethods.BlendFunction();
