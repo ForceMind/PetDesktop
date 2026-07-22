@@ -129,6 +129,22 @@ namespace CocoDesktopPet
             InteractionKind.Sleepy
         };
 
+        private static readonly InteractionKind[] AutomaticInteractionOrder =
+        {
+            InteractionKind.Nod,
+            InteractionKind.Sway,
+            InteractionKind.Tiptoe,
+            InteractionKind.Stretch,
+            InteractionKind.PeekLeft,
+            InteractionKind.PeekRight,
+            InteractionKind.Proud,
+            InteractionKind.Bow,
+            InteractionKind.Dance,
+            InteractionKind.Heartbeat,
+            InteractionKind.Laugh,
+            InteractionKind.Sleepy
+        };
+
         private const int BasePetHeight = 320;
         private const int JumpSpace = 54;
         private const int MinBubbleWidth = 180;
@@ -195,6 +211,7 @@ namespace CocoDesktopPet
         private DateTime idleStarted;
         private DateTime idleGestureStarted;
         private DateTime nextIdleGestureAt;
+        private DateTime nextAutomaticInteractionAt;
         private int idleGesturePair;
         private bool idleGestureActive;
         private Rectangle lastCharacterBounds;
@@ -265,7 +282,8 @@ namespace CocoDesktopPet
             idleFollowImages = null;
             idleLifeImages = null;
             idleStarted = DateTime.UtcNow;
-            nextIdleGestureAt = idleStarted.AddMilliseconds(1800 + random.Next(1800));
+            nextIdleGestureAt = idleStarted.AddMilliseconds(3000 + random.Next(5000));
+            nextAutomaticInteractionAt = idleStarted.AddMilliseconds(12000 + random.Next(16000));
             UpdatePetDimensions();
 
             Rectangle work = Screen.PrimaryScreen.WorkingArea;
@@ -806,6 +824,7 @@ namespace CocoDesktopPet
 
         private void PetMouseDown(object sender, MouseEventArgs e)
         {
+            RegisterUserActivity();
             if (e.Button == MouseButtons.Left)
             {
                 mouseIsDown = true;
@@ -838,6 +857,7 @@ namespace CocoDesktopPet
 
             if (wasDragged)
             {
+                RegisterUserActivity();
                 petScreenX = dragStartPet.X + dx;
                 petScreenY = dragStartPet.Y + dy;
                 ClampPetToScreen();
@@ -871,6 +891,7 @@ namespace CocoDesktopPet
 
         private void PetMouseWheel(object sender, MouseEventArgs e)
         {
+            RegisterUserActivity();
             double next = scaleFactor + (e.Delta > 0 ? 0.10 : -0.10);
             SetScale(next, false);
         }
@@ -984,9 +1005,17 @@ namespace CocoDesktopPet
 
         private void TriggerInteraction(InteractionKind selectedInteraction, ClickRegion region)
         {
+            TriggerInteraction(selectedInteraction, region, true);
+        }
+
+        private void TriggerInteraction(InteractionKind selectedInteraction, ClickRegion region,
+            bool showDialogue)
+        {
             interaction = selectedInteraction;
             interactionIndex++;
             interactionStarted = DateTime.UtcNow;
+            nextAutomaticInteractionAt = interactionStarted.AddMilliseconds(
+                18000 + random.Next(18000));
             idleGestureActive = false;
             Text = string.Format(UiText("Coco 桌宠 - {0} - {1}",
                 "Coco Desktop Pet - {0} - {1}"), region, interaction);
@@ -995,12 +1024,32 @@ namespace CocoDesktopPet
                 diagnosticFrameSaved = false;
             }
 
-            bubbleText = random.Next(3) == 0
-                ? PickRegionDialogue(region)
-                : PickDialogue(interaction);
-            bubbleUntil = DateTime.UtcNow.AddMilliseconds(2600);
+            if (showDialogue)
+            {
+                bubbleText = random.Next(3) == 0
+                    ? PickRegionDialogue(region)
+                    : PickDialogue(interaction);
+                bubbleUntil = DateTime.UtcNow.AddMilliseconds(2600);
+            }
+            else
+            {
+                bubbleText = string.Empty;
+            }
             animationTimer.Start();
             RenderFrame();
+        }
+
+        private void TriggerAutomaticInteraction()
+        {
+            InteractionKind selected = AutomaticInteractionOrder[
+                random.Next(AutomaticInteractionOrder.Length)];
+            TriggerInteraction(selected, ClickRegion.Body, random.Next(2) == 0);
+        }
+
+        private void RegisterUserActivity()
+        {
+            nextAutomaticInteractionAt = DateTime.UtcNow.AddMilliseconds(
+                18000 + random.Next(18000));
         }
 
         private string PickRegionDialogue(ClickRegion region)
@@ -1150,7 +1199,8 @@ namespace CocoDesktopPet
                 // continues from the exact same neutral rig without a hard cut.
                 idleStarted = now;
                 Text = UiText("Coco 桌宠 - 待机", "Coco Desktop Pet - Idle");
-                nextIdleGestureAt = now.AddMilliseconds(700 + random.Next(900));
+                nextIdleGestureAt = now.AddMilliseconds(3000 + random.Next(5000));
+                nextAutomaticInteractionAt = now.AddMilliseconds(18000 + random.Next(18000));
             }
 
             if (!string.IsNullOrEmpty(bubbleText) && now >= bubbleUntil)
@@ -1160,7 +1210,14 @@ namespace CocoDesktopPet
 
             if (interaction == InteractionKind.None)
             {
-                UpdateIdleGesture(now);
+                if (!mouseIsDown && now >= nextAutomaticInteractionAt)
+                {
+                    TriggerAutomaticInteraction();
+                }
+                else
+                {
+                    UpdateIdleGesture(now);
+                }
             }
 
             RenderFrame();
@@ -1175,10 +1232,10 @@ namespace CocoDesktopPet
 
             if (idleGestureActive)
             {
-                if ((now - idleGestureStarted).TotalMilliseconds >= 1800.0)
+                if ((now - idleGestureStarted).TotalMilliseconds >= 950.0)
                 {
                     idleGestureActive = false;
-                    nextIdleGestureAt = now.AddMilliseconds(2200 + random.Next(3000));
+                    nextIdleGestureAt = now.AddMilliseconds(3000 + random.Next(5000));
                 }
                 return;
             }
@@ -1303,7 +1360,7 @@ namespace CocoDesktopPet
             if (!waitingForDiagnosticAction && !diagnosticFrameSaved &&
                 !string.IsNullOrEmpty(diagnosticPath) &&
                 (interaction == InteractionKind.None ||
-                 (diagnosticProgress >= 0.56 && diagnosticProgress <= 0.72)))
+                 diagnosticProgress >= 0.45))
             {
                 frame.Save(diagnosticPath, ImageFormat.Png);
                 diagnosticFrameSaved = true;
@@ -1392,11 +1449,16 @@ namespace CocoDesktopPet
             {
                 Bitmap[] sequence = idleOutfitFrameImages[Math.Max(0,
                     Math.Min(idleOutfitFrameImages.Length - 1, (int)outfit))];
-                double elapsed = Math.Max(0.0,
-                    (DateTime.UtcNow - idleStarted).TotalMilliseconds);
                 // Authored whole frames play without cross-fading. Cross-fading
                 // creates doubled hands and translucent outlines on a layered window.
-                int frameIndex = (int)Math.Floor(elapsed / 115.0) % sequence.Length;
+                int frameIndex = 0;
+                if (idleGestureActive)
+                {
+                    double progress = Math.Max(0.0, Math.Min(1.0,
+                        (DateTime.UtcNow - idleGestureStarted).TotalMilliseconds / 950.0));
+                    frameIndex = Math.Min(sequence.Length - 1,
+                        (int)Math.Floor(progress * (sequence.Length - 1)));
+                }
                 first = sequence[frameIndex];
                 second = first;
                 blend = 0F;

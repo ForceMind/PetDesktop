@@ -81,7 +81,8 @@ private final class PetView: NSView {
     private var mouseIsDown = false
     private var idleStarted = Date.timeIntervalSinceReferenceDate
     private var idleGestureStarted = Date.timeIntervalSinceReferenceDate
-    private var nextIdleGestureAt = Date.timeIntervalSinceReferenceDate + 2.4
+    private var nextIdleGestureAt = Date.timeIntervalSinceReferenceDate + Double.random(in: 3.0...8.0)
+    private var nextAutomaticActionAt = Date.timeIntervalSinceReferenceDate + Double.random(in: 12.0...28.0)
     private var idleGesturePair = 0
     private var idleGestureActive = false
     private var gazeX: CGFloat = 0
@@ -195,19 +196,26 @@ private final class PetView: NSView {
                 actionIndex = nil
                 idleStarted = now
                 speech = nil
-                nextIdleGestureAt = now + Double.random(in: 0.7...1.6)
+                nextIdleGestureAt = now + Double.random(in: 3.0...8.0)
+                nextAutomaticActionAt = now + Double.random(in: 18.0...36.0)
             }
         }
-        if actionIndex == nil { updateIdleGesture(now: now) }
+        if actionIndex == nil {
+            if !mouseIsDown && now >= nextAutomaticActionAt {
+                triggerAutomaticAction()
+            } else {
+                updateIdleGesture(now: now)
+            }
+        }
         needsDisplay = true
     }
 
     private func updateIdleGesture(now: TimeInterval) {
         if mouseIsDown { return }
         if idleGestureActive {
-            if now - idleGestureStarted >= 1.8 {
+            if now - idleGestureStarted >= 0.95 {
                 idleGestureActive = false
-                nextIdleGestureAt = now + Double.random(in: 2.2...5.2)
+                nextIdleGestureAt = now + Double.random(in: 3.0...8.0)
             }
         } else if now >= nextIdleGestureAt {
             idleGesturePair = Int.random(in: 0..<4)
@@ -266,8 +274,11 @@ private final class PetView: NSView {
 
         let outfitIndex = min(frameIdleOutfits.count - 1, max(0, outfit.rawValue))
         let sequence = frameIdleOutfits[outfitIndex]
-        let elapsed = max(0, Date.timeIntervalSinceReferenceDate - idleStarted)
-        let position = Int(floor(elapsed / 0.115)) % sequence.count
+        guard idleGestureActive else { return sequence[0] }
+        let progress = min(1, max(0,
+            (Date.timeIntervalSinceReferenceDate - idleGestureStarted) / 0.95))
+        let position = min(sequence.count - 1,
+            Int(floor(progress * Double(sequence.count - 1))))
         return sequence[position]
     }
 
@@ -903,13 +914,34 @@ private final class PetView: NSView {
     private func triggerAction(at point: NSPoint) {
         let region = clickRegion(at: point)
         let index = actionForRegion(region)
+        startAction(index: index, region: region, showSpeech: true)
+    }
+
+    private func startAction(index: Int, region: ClickRegion, showSpeech: Bool) {
         performLayoutChange {
             actionIndex = index
             actionStarted = Date.timeIntervalSinceReferenceDate
+            nextAutomaticActionAt = actionStarted + Double.random(in: 18.0...36.0)
             idleGestureActive = false
-            speech = Int.random(in: 0..<3) == 0 ? regionDialogue(region) : pickDialogue(for: index)
+            if showSpeech {
+                speech = Int.random(in: 0..<3) == 0
+                    ? regionDialogue(region)
+                    : pickDialogue(for: index)
+            } else {
+                speech = nil
+            }
         }
         needsDisplay = true
+    }
+
+    private func triggerAutomaticAction() {
+        let choices = [4, 5, 10, 11, 13, 14, 17, 18, 21, 23, 29, 31]
+        let index = choices.randomElement()!
+        startAction(index: index, region: .body, showSpeech: Bool.random())
+    }
+
+    private func registerUserActivity() {
+        nextAutomaticActionAt = Date.timeIntervalSinceReferenceDate + Double.random(in: 18.0...36.0)
     }
 
     private func performLayoutChange(_ mutation: () -> Void) {
@@ -944,6 +976,7 @@ private final class PetView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        registerUserActivity()
         mouseDownScreenPoint = NSEvent.mouseLocation
         mouseDownWindowOrigin = window?.frame.origin ?? .zero
         didDrag = false
@@ -971,11 +1004,13 @@ private final class PetView: NSView {
     }
 
     override func scrollWheel(with event: NSEvent) {
+        registerUserActivity()
         let step: CGFloat = event.scrollingDeltaY > 0 ? 18 : -18
         setPetHeight(petHeight + step)
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        registerUserActivity()
         let menu = makeContextMenu()
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }

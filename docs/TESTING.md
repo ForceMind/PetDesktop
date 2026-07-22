@@ -51,6 +51,8 @@ py tools\validate_macos_source.py
 11. 中文系统应默认中文并显示中文/English 切换；切到 English 后菜单和对白应为英文。
 
 Windows 可运行 `tools/test_system_language.ps1`，它分别模拟 `en-US` 与 `zh-CN` UI Culture，并验证默认语言、语言菜单可见性和英文菜单中不存在中文字符。macOS 的对应源代码与本地化包约束由 `tools/validate_macos_source.py` 检查。
+
+`tools/test_autonomous_idle.ps1` 验证安静待机保持站立首帧、待机小动作会播放中间帧、超时后会自动表演，以及鼠标拖动时不会触发自动动作。
 10. Windows 双击 EXE、macOS 双击 App 均可直接运行，应用图标正常。
 
 ## 诊断帧

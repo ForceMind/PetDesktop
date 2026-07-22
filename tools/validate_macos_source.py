@@ -81,6 +81,12 @@ def main() -> None:
     assert "Locale.preferredLanguages.first" in source, "Missing macOS system-language detection"
     assert "if cocoSystemUsesChineseUI" in source, "macOS language menu is not system-gated"
     assert "case mixed" not in source and ".mixed" not in source, "Obsolete mixed mode is still exposed"
+    assert "nextAutomaticActionAt" in source, "Missing autonomous performance schedule"
+    assert "triggerAutomaticAction()" in source, "Missing autonomous performance trigger"
+    assert "guard idleGestureActive else { return sequence[0] }" in source, (
+        "Quiet macOS idle does not hold the neutral standing frame"
+    )
+    assert "now - idleGestureStarted >= 0.95" in source, "Idle gesture does not play once"
 
     assert "updateContinuousGaze()" in source, "Missing continuous cursor tracking"
     draw_block = source[source.index("override func draw"):source.index("private func drawIdleLayers")]
@@ -143,6 +149,7 @@ def main() -> None:
     print("Outfits: five regenerated idle frame sequences, no overlays")
     print("Dialogue: 32 Chinese + 32 pure-English action lines")
     print("Locale: English-only by default; Chinese systems expose the language switch")
+    print("Idle: neutral holds, occasional authored gestures, and autonomous performances")
     print("Timeline: stable Coco -> continuous motion -> stable Coco")
 
 

@@ -46,8 +46,8 @@ py tools\validate_macos_source.py
 git add --all
 git commit -m "Deduplicate frames and restore authored motion paths"
 git push origin main
-git tag -a v1.6.0 -m "Coco Desktop Pet v1.6.0"
-git push origin v1.6.0
+git tag -a v1.7.0 -m "Coco Desktop Pet v1.7.0"
+git push origin v1.7.0
 ```
 
 不要在同一版本标签上覆盖产物；需要修复时创建新的补丁版本。

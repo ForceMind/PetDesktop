@@ -37,6 +37,9 @@ jobs:
       - name: Verify system-language UI policy
         shell: pwsh
         run: ./tools/test_system_language.ps1
+      - name: Verify autonomous idle behavior
+        shell: pwsh
+        run: ./tools/test_autonomous_idle.ps1
       - name: Prepare stable release filename
         shell: pwsh
         run: |
