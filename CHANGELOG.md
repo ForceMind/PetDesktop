@@ -2,7 +2,7 @@
 
 发布包可从 [GitHub Releases](https://github.com/ForceMind/PetDesktop/releases) 获取。
 
-## 未发布
+## v1.6.0 - 2026-07-22
 
 ### 按系统语言启用中文
 
