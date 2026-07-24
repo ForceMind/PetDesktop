@@ -78,4 +78,11 @@ sudo systemctl status coco-ai-game --no-pager
 sudo journalctl -u coco-ai-game -n 200 --no-pager
 ```
 
-Alpine/OpenRC 使用 `rc-service coco-ai-game status`，日志位于 `/var/log/coco-ai-game/`。如果本机健康检查成功但公网无法打开，检查 Nginx、DNS、防火墙和云安全组；不要直接把 Node 端口开放到公网。修改 `.env` 后重新运行 `sudo ./deploy-linux.sh`，它会保留配置并重建服务。完整步骤见 [`AI_GAME_SERVER_DEPLOYMENT.md`](AI_GAME_SERVER_DEPLOYMENT.md)。
+Alpine/OpenRC 使用 `rc-service coco-ai-game status`，日志位于 `/var/log/coco-ai-game/`。如果本机健康检查成功但公网无法打开，检查脚本输出的实际端口以及云防火墙/安全组；可选 Nginx 模式还需要检查 Nginx 和 DNS。修改 `.env` 后重新运行 `sudo ./deploy-linux.sh`，它会保留配置并重建服务。完整步骤见 [`AI_GAME_SERVER_DEPLOYMENT.md`](AI_GAME_SERVER_DEPLOYMENT.md)。
+
+## OpenCloudOS 安装 Node.js 时出现 DNF 冲突
+
+旧部署脚本可能因为系统 Node.js 18 和 npm 的 RPM 绑定而报 `cannot install both nodejs`。
+不要删除系统 Node.js/npm，也不要使用 `--allowerasing`。最新 `deploy-linux.sh` 会在
+`ai-game-server/.runtime` 安装仅供 Coco 使用的 Node.js 22，不改变服务器上的其他 Node
+服务。拉取 `codex/ai-game-pet-demo` 最新提交后直接重新运行部署脚本即可。

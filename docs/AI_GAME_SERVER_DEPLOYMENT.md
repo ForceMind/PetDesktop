@@ -15,8 +15,9 @@
 - Alpine Linux（`apk`）
 
 服务管理支持 systemd 和 OpenRC。Node.js 要求 20 或更高版本；脚本会优先使用服务器已有
-版本，版本过旧时安装 Node.js 22。Alpine 默认没有 Bash 时，脚本会先通过 `apk` 安装 Bash，
-再自动继续同一次部署。
+版本。系统 Node.js 过旧或没有 npm 时，脚本把经过 SHA-256 校验的 Node.js 22 下载到
+`ai-game-server/.runtime`，只供 Coco 使用，不卸载、不升级服务器全局 Node.js/npm。
+Alpine 默认没有 Bash 时，脚本会先通过 `apk` 安装 Bash，再自动继续同一次部署。
 
 ## 第一次部署
 
@@ -83,6 +84,7 @@ sudo ./deploy-linux.sh
 - 不安装、不修改、不重启 Nginx；
 - 不占用 80 或 443；
 - 不停止占用 8787 的其他进程，而是自动寻找下一个空闲端口；
+- 不替换服务器已有的 Node.js/npm；需要时使用仓库内被 Git 忽略的私有 Node.js 22；
 - 只创建或更新 `coco-ai-game` 服务和仓库内的 `ai-game-server` 文件；
 - 只添加实际选中端口的防火墙放行规则，不改动其他端口规则。
 
@@ -223,6 +225,29 @@ sudo tail -f /var/log/coco-ai-game/output.log /var/log/coco-ai-game/error.log
 APP_PORT="$(awk -F= '$1 == "PORT" { print $2; exit }' ai-game-server/.env)"
 curl -I "http://127.0.0.1:${APP_PORT}/"
 ```
+
+## OpenCloudOS / RHEL 的 Node.js 18 与 npm 冲突
+
+如果旧版脚本曾出现以下 DNF 提示：
+
+```text
+package npm ... requires nodejs = 18...
+cannot install both nodejs 22 ... and nodejs 18...
+```
+
+说明服务器全局 Node.js 18/npm 被其他 RPM 依赖约束，旧脚本尝试安装全局 Node.js 22 时被
+DNF 安全拦截。不要运行 `dnf remove nodejs npm`，也不需要使用 `--allowerasing`。拉取最新
+分支后重新部署即可：
+
+```bash
+cd PetDesktop
+git switch codex/ai-game-pet-demo
+git pull --ff-only origin codex/ai-game-pet-demo
+sudo ./deploy-linux.sh
+```
+
+新版脚本会显示 `Downloading a private Node.js 22 runtime for Coco`，并把运行时放到
+`ai-game-server/.runtime`。系统的 `node --version` 和已有 Node 服务不会改变。
 
 ## 回滚
 

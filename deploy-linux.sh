@@ -33,6 +33,8 @@ RUN_TESTS=1
 ENABLE_NGINX="${COCO_ENABLE_NGINX:-0}"
 DOMAIN="${COCO_DOMAIN:-}"
 REQUESTED_PORT="${COCO_PORT:-}"
+NODE_BIN=""
+NODE_BIN_DIR=""
 
 log() { printf '[Coco] %s\n' "$*"; }
 fail() { printf '[Coco] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -174,46 +176,84 @@ install_packages() {
 install_base_tools() {
   log "Installing required system packages with ${PKG_MANAGER}."
   case "${PKG_MANAGER}" in
-    apt-get) install_packages ca-certificates curl git xz-utils openssl ;;
-    dnf|yum|zypper|pacman) install_packages ca-certificates curl git xz openssl ;;
-    apk) install_packages ca-certificates curl git xz openssl nodejs npm ;;
+    apt-get) install_packages ca-certificates curl git tar xz-utils openssl ;;
+    dnf|yum|zypper|pacman) install_packages ca-certificates curl git tar xz openssl ;;
+    apk) install_packages ca-certificates curl git tar xz openssl ;;
   esac
 }
 
 node_major() {
-  command -v node >/dev/null 2>&1 || return 1
-  node --version | sed -E 's/^v([0-9]+).*/\1/'
+  local binary="$1"
+  [[ -x "${binary}" ]] || return 1
+  "${binary}" --version | sed -E 's/^v([0-9]+).*/\1/'
 }
 
 ensure_node() {
-  local major
-  major="$(node_major 2>/dev/null || printf '0')"
-  if [[ "${major}" =~ ^[0-9]+$ ]] && ((major >= 20)); then
-    log "Using Node.js $(node --version)."
+  local system_node="" system_npm="" local_node="${SERVER_DIR}/.runtime/node/bin/node" major
+  system_node="$(command -v node 2>/dev/null || true)"
+  system_npm="$(command -v npm 2>/dev/null || true)"
+  major="$(node_major "${system_node}" 2>/dev/null || printf '0')"
+  if [[ "${major}" =~ ^[0-9]+$ ]] && ((major >= 20)) && [[ -n "${system_npm}" ]]; then
+    NODE_BIN="${system_node}"
+    NODE_BIN_DIR="$(dirname -- "${NODE_BIN}")"
+    log "Using existing Node.js $("${NODE_BIN}" --version)."
     return
   fi
 
-  log "Installing Node.js 22 because Node.js 20 or newer is required."
-  case "${PKG_MANAGER}" in
-    apt-get)
-      curl -fsSL https://deb.nodesource.com/setup_22.x | as_root bash -
-      install_packages nodejs
-      ;;
-    dnf|yum)
-      curl -fsSL https://rpm.nodesource.com/setup_22.x | as_root bash -
-      install_packages nodejs
-      ;;
-    zypper|pacman)
-      install_packages nodejs npm
-      ;;
-    apk)
-      install_packages nodejs npm
-      ;;
+  major="$(node_major "${local_node}" 2>/dev/null || printf '0')"
+  if [[ "${major}" =~ ^[0-9]+$ ]] && ((major >= 20)); then
+    NODE_BIN="${local_node}"
+    NODE_BIN_DIR="$(dirname -- "${NODE_BIN}")"
+    log "Using Coco's private Node.js $("${NODE_BIN}" --version); the system Node.js is unchanged."
+    return
+  fi
+
+  install_private_node
+}
+
+install_private_node() {
+  local machine node_arch runtime_dir temp_dir manifest archive expected actual folder
+  machine="$(uname -m)"
+  case "${machine}" in
+    x86_64|amd64) node_arch="x64" ;;
+    aarch64|arm64) node_arch="arm64" ;;
+    armv7l) node_arch="armv7l" ;;
+    ppc64le) node_arch="ppc64le" ;;
+    s390x) node_arch="s390x" ;;
+    *) fail "Unsupported CPU architecture for the private Node.js runtime: ${machine}." ;;
   esac
 
-  major="$(node_major 2>/dev/null || printf '0')"
-  [[ "${major}" =~ ^[0-9]+$ ]] && ((major >= 20)) \
-    || fail "Node.js 20+ is still unavailable. Install it manually and rerun this script."
+  runtime_dir="${SERVER_DIR}/.runtime"
+  as_root install -d -o "${DEPLOY_USER}" -g "${DEPLOY_GROUP}" -m 750 "${runtime_dir}"
+  temp_dir="$(as_deploy mktemp -d "${runtime_dir}/node-download.XXXXXX")"
+  manifest="${temp_dir}/SHASUMS256.txt"
+  log "Downloading a private Node.js 22 runtime for Coco; the system Node.js/npm will not be changed."
+  as_deploy curl -fsSL --retry 3 --retry-delay 2 \
+    "https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt" -o "${manifest}" \
+    || fail "Could not download the Node.js checksum manifest."
+  archive="$(awk -v suffix="linux-${node_arch}.tar.xz" '$2 ~ suffix "$" { print $2; exit }' "${manifest}")"
+  [[ -n "${archive}" ]] || fail "No Node.js 22 archive is available for ${machine}."
+  expected="$(awk -v archive="${archive}" '$2 == archive { print $1; exit }' "${manifest}")"
+  as_deploy curl -fsSL --retry 3 --retry-delay 2 \
+    "https://nodejs.org/dist/latest-v22.x/${archive}" -o "${temp_dir}/${archive}" \
+    || fail "Could not download the private Node.js runtime."
+  actual="$(openssl dgst -sha256 "${temp_dir}/${archive}" | awk '{ print $NF }')"
+  [[ -n "${expected}" && "${actual}" == "${expected}" ]] \
+    || fail "The downloaded Node.js archive failed its SHA-256 check."
+
+  folder="${archive%.tar.xz}"
+  as_deploy tar -xJf "${temp_dir}/${archive}" -C "${temp_dir}"
+  if [[ ! -d "${runtime_dir}/${folder}" ]]; then
+    as_deploy mv "${temp_dir}/${folder}" "${runtime_dir}/${folder}"
+  fi
+  as_deploy ln -sfn "${folder}" "${runtime_dir}/node"
+  as_deploy rm -rf -- "${temp_dir}"
+
+  NODE_BIN="${runtime_dir}/node/bin/node"
+  NODE_BIN_DIR="${runtime_dir}/node/bin"
+  [[ "$(node_major "${NODE_BIN}" 2>/dev/null || printf '0')" -ge 20 ]] \
+    || fail "Coco's private Node.js runtime did not start correctly."
+  log "Installed Coco's private Node.js $("${NODE_BIN}" --version); the system Node.js is unchanged."
 }
 
 read_env_value() {
@@ -270,7 +310,7 @@ service_is_active() {
 
 port_is_available() {
   local host="$1" port="$2"
-  node -e '
+  "${NODE_BIN}" -e '
     const net = require("node:net");
     const server = net.createServer();
     server.unref();
@@ -316,20 +356,19 @@ configure_network() {
 
 build_server() {
   log "Installing locked Node dependencies."
-  as_deploy env npm_config_audit=false npm ci --prefix "${SERVER_DIR}"
+  as_deploy env "PATH=${NODE_BIN_DIR}:${PATH}" npm_config_audit=false npm ci --prefix "${SERVER_DIR}"
   if ((RUN_TESTS)); then
     log "Running the server test suite."
-    as_deploy npm --prefix "${SERVER_DIR}" test
+    as_deploy env "PATH=${NODE_BIN_DIR}:${PATH}" npm --prefix "${SERVER_DIR}" test
   fi
   log "Building the production server."
-  as_deploy npm --prefix "${SERVER_DIR}" run build
+  as_deploy env "PATH=${NODE_BIN_DIR}:${PATH}" npm --prefix "${SERVER_DIR}" run build
   log "Removing development-only Node packages."
-  as_deploy npm --prefix "${SERVER_DIR}" prune --omit=dev
+  as_deploy env "PATH=${NODE_BIN_DIR}:${PATH}" npm --prefix "${SERVER_DIR}" prune --omit=dev
 }
 
 install_systemd_service() {
-  local node_bin temp
-  node_bin="$(command -v node)"
+  local node_bin="${NODE_BIN}" temp
   temp="$(mktemp)"
   cat > "${temp}" <<EOF
 [Unit]
@@ -367,7 +406,7 @@ EOF
 
 install_openrc_service() {
   local node_bin service_path temp log_dir
-  node_bin="$(command -v node)"
+  node_bin="${NODE_BIN}"
   service_path="/etc/init.d/${APP_NAME}"
   log_dir="/var/log/${APP_NAME}"
   as_root install -d -o "${DEPLOY_USER}" -g "${DEPLOY_GROUP}" -m 750 "${log_dir}"

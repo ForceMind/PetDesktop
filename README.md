@@ -8,7 +8,8 @@ AI 游戏 Demo 直接复用本仓库 `web/` 和 Coco 完整角色帧资源。双
 服务启动后可在 `http://localhost:8787/settings` 使用可视化设置页。
 Linux 服务器切换到 `codex/ai-game-pet-demo` 分支后可运行 `sudo ./deploy-linux.sh`
 一键安装或更新；脚本默认避开已占用端口，且不修改服务器现有 Nginx，结束时会打印
-`http://服务器IP:端口/`。多发行版、首次切换分支、HTTPS、日志和回滚说明见
+`http://服务器IP:端口/`。系统 Node.js 过旧时使用项目私有 Node.js 22，不替换服务器
+已有 Node/npm。多发行版、首次切换分支、HTTPS、日志和回滚说明见
 [`docs/AI_GAME_SERVER_DEPLOYMENT.md`](docs/AI_GAME_SERVER_DEPLOYMENT.md)。
 
 [![Build Coco Desktop Pet](https://github.com/ForceMind/PetDesktop/actions/workflows/build.yml/badge.svg)](https://github.com/ForceMind/PetDesktop/actions/workflows/build.yml)
