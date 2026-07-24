@@ -32,6 +32,7 @@ SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
 RUN_TESTS=1
 ENABLE_NGINX="${COCO_ENABLE_NGINX:-0}"
 DOMAIN="${COCO_DOMAIN:-}"
+REQUESTED_PORT="${COCO_PORT:-}"
 
 log() { printf '[Coco] %s\n' "$*"; }
 fail() { printf '[Coco] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -41,6 +42,7 @@ usage() {
 Usage: ./deploy-linux.sh [options]
 
 Options:
+  --port PORT       Preferred direct-access port; finds the next free port if busy.
   --domain DOMAIN   Install/configure Nginx for this domain.
   --nginx           Install/configure Nginx with server_name _.
   --skip-tests      Build without running the test suite.
@@ -49,6 +51,7 @@ Options:
 Environment variables:
   COCO_DOMAIN             Same as --domain.
   COCO_ENABLE_NGINX=1     Same as --nginx.
+  COCO_PORT               Same as --port.
   COCO_SERVICE_USER       Service account; defaults to the repository owner.
 
 The script is safe to run again after every git pull. It preserves
@@ -62,6 +65,11 @@ while (($#)); do
       (($# >= 2)) || fail "--domain requires a value"
       DOMAIN="$2"
       ENABLE_NGINX=1
+      shift 2
+      ;;
+    --port)
+      (($# >= 2)) || fail "--port requires a value"
+      REQUESTED_PORT="$2"
       shift 2
       ;;
     --nginx)
@@ -92,6 +100,12 @@ esac
 [[ -f "${ENV_EXAMPLE}" ]] || fail "Missing ${ENV_EXAMPLE}."
 if [[ -n "${DOMAIN}" && ! "${DOMAIN}" =~ ^[A-Za-z0-9.-]+$ ]]; then
   fail "COCO_DOMAIN contains unsupported characters."
+fi
+if [[ -n "${REQUESTED_PORT}" ]]; then
+  [[ "${REQUESTED_PORT}" =~ ^[0-9]+$ ]] || fail "The requested port must be numeric."
+  REQUESTED_PORT="$((10#${REQUESTED_PORT}))"
+  ((REQUESTED_PORT >= 1024 && REQUESTED_PORT <= 65535)) \
+    || fail "The port must be between 1024 and 65535."
 fi
 
 if ((EUID == 0)); then
@@ -240,11 +254,64 @@ prepare_env() {
     log "Generated ADMIN_TOKEN and stored it only in ai-game-server/.env."
   fi
 
-  local host
-  host="$(read_env_value HOST || true)"
-  if [[ -z "${host}" ]]; then
-    replace_env_value HOST "127.0.0.1"
+}
+
+service_is_active() {
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    systemctl is-active --quiet "${APP_NAME}.service"
+    return
   fi
+  if command -v rc-service >/dev/null 2>&1; then
+    rc-service "${APP_NAME}" status >/dev/null 2>&1
+    return
+  fi
+  return 1
+}
+
+port_is_available() {
+  local host="$1" port="$2"
+  node -e '
+    const net = require("node:net");
+    const server = net.createServer();
+    server.unref();
+    server.once("error", () => process.exit(1));
+    server.listen(Number(process.argv[2]), process.argv[1], () => server.close(() => process.exit(0)));
+  ' "${host}" "${port}"
+}
+
+configure_network() {
+  local configured_port desired_port candidate bind_host existing_service=0
+  configured_port="$(read_env_value PORT || true)"
+  desired_port="${REQUESTED_PORT:-${configured_port:-8787}}"
+  [[ "${desired_port}" =~ ^[0-9]+$ ]] || fail "The requested port must be numeric."
+  desired_port="$((10#${desired_port}))"
+  if [[ "${configured_port}" =~ ^[0-9]+$ ]]; then
+    configured_port="$((10#${configured_port}))"
+  fi
+  ((desired_port >= 1024 && desired_port <= 65535)) || fail "The port must be between 1024 and 65535."
+
+  if ((ENABLE_NGINX == 1)); then
+    bind_host="127.0.0.1"
+  else
+    bind_host="0.0.0.0"
+  fi
+
+  service_is_active && existing_service=1
+  candidate="${desired_port}"
+  if ! ((existing_service == 1)) || [[ "${candidate}" != "${configured_port}" ]]; then
+    while ! port_is_available "${bind_host}" "${candidate}"; do
+      ((candidate++))
+      ((candidate <= 65535)) || fail "No free TCP port is available after ${desired_port}."
+    done
+  fi
+  if [[ "${candidate}" != "${desired_port}" ]]; then
+    log "Port ${desired_port} is already in use; selected free port ${candidate} without stopping that service."
+  fi
+
+  APP_PORT="${candidate}"
+  APP_BIND_HOST="${bind_host}"
+  replace_env_value PORT "${APP_PORT}"
+  replace_env_value HOST "${APP_BIND_HOST}"
 }
 
 build_server() {
@@ -394,6 +461,23 @@ EOF
   fi
 }
 
+open_firewall_port() {
+  local public_port="${APP_PORT}"
+  ((ENABLE_NGINX == 1)) && public_port=80
+  if command -v ufw >/dev/null 2>&1 && as_root ufw status 2>/dev/null | grep -q '^Status: active'; then
+    log "Allowing TCP port ${public_port} in the active UFW firewall."
+    as_root ufw allow "${public_port}/tcp"
+    return
+  fi
+  if command -v firewall-cmd >/dev/null 2>&1 && as_root firewall-cmd --quiet --state; then
+    log "Allowing TCP port ${public_port} in the active firewalld firewall."
+    as_root firewall-cmd --quiet --add-port="${public_port}/tcp"
+    as_root firewall-cmd --quiet --permanent --add-port="${public_port}/tcp"
+    return
+  fi
+  log "No active UFW/firewalld rule was changed; allow TCP ${public_port} in any cloud firewall or security group."
+}
+
 verify_service() {
   local attempt
   for attempt in $(seq 1 30); do
@@ -412,12 +496,11 @@ verify_service() {
 install_base_tools
 ensure_node
 prepare_env
-APP_PORT="$(read_env_value PORT || true)"
-[[ "${APP_PORT}" =~ ^[0-9]+$ ]] || fail "PORT in ai-game-server/.env must be numeric."
-((APP_PORT >= 1 && APP_PORT <= 65535)) || fail "PORT must be between 1 and 65535."
+configure_network
 build_server
 install_service
 install_nginx
+open_firewall_port
 verify_service
 
 log "Deployment complete."
@@ -428,6 +511,6 @@ if ((ENABLE_NGINX == 1)); then
     log "Open the server's HTTP address."
   fi
 else
-  log "The app is listening on 127.0.0.1:${APP_PORT}; configure a reverse proxy before public access."
+  log "Open http://SERVER_IP:${APP_PORT}/ (replace SERVER_IP with this server's public IP)."
 fi
 log "Secrets remain only in ${ENV_FILE}; no secret value was printed."

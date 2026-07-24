@@ -22,27 +22,77 @@
 
 建议把仓库克隆到普通部署用户有读写权限的目录，不要把仓库放在临时目录。
 
+服务器还没有 `PetDesktop` 目录时：
+
 ```bash
-git clone https://github.com/ForceMind/PetDesktop.git
+git clone --branch codex/ai-game-pet-demo --single-branch https://github.com/ForceMind/PetDesktop.git
 cd PetDesktop
-git switch codex/ai-game-pet-demo
-chmod +x deploy-linux.sh
 sudo ./deploy-linux.sh
 ```
+
+服务器已经克隆过仓库、但还没有本地 Demo 分支时：
+
+```bash
+cd PetDesktop
+git fetch origin
+git switch --track -c codex/ai-game-pet-demo origin/codex/ai-game-pet-demo
+git pull --ff-only origin codex/ai-game-pet-demo
+sudo ./deploy-linux.sh
+```
+
+如果提示分支已经存在，改用：
+
+```bash
+git switch codex/ai-game-pet-demo
+git pull --ff-only origin codex/ai-game-pet-demo
+sudo ./deploy-linux.sh
+```
+
+不要使用只有仓库地址、没有分支名的 `git pull` 来部署 Demo；服务器必须明确位于
+`codex/ai-game-pet-demo` 分支。
 
 脚本会：
 
 1. 安装 Git、curl、证书、Node.js 等系统依赖；
 2. 保留已有 `ai-game-server/.env`，不存在时从 `.env.example` 创建；
 3. 在 `.env` 没有管理 Token 时生成随机 `ADMIN_TOKEN`，但不会打印；
-4. 使用 `npm ci` 安装锁定依赖；
-5. 运行测试并构建 `dist/server.mjs`；
-6. 移除开发依赖；
-7. 安装并启动 `coco-ai-game` 系统服务；
-8. 从本机地址执行健康检查。
+4. 默认让 Coco 监听 `0.0.0.0`，从 8787 开始选择没有被占用的 TCP 端口；
+5. 使用 `npm ci` 安装锁定依赖；
+6. 运行测试并构建 `dist/server.mjs`；
+7. 移除开发依赖；
+8. 安装并启动独立的 `coco-ai-game` 系统服务；
+9. 只为选中的端口添加 UFW/firewalld 规则，并从本机地址执行健康检查。
 
 首次生成的 `.env` 使用 Mock 游戏和 Mock AI，便于先确认网页和服务正常。随后通过服务器上的
 设置页或直接编辑 `.env` 配置真实参数。`.env` 权限会被设为 `600`，且已被 Git 忽略。
+
+部署结束会打印：
+
+```text
+[Coco] Open http://SERVER_IP:8787/ (replace SERVER_IP with this server's public IP).
+```
+
+如果 8787 已被其他程序占用，脚本不会停止它，而会打印实际选中的下一个空闲端口，例如 8788。
+浏览器使用 `http://服务器公网IP:实际端口/` 访问。云厂商安全组无法由服务器脚本修改，需要允许
+输出的 TCP 端口；本机启用 UFW 或 firewalld 时，脚本会只开放该端口。
+
+## 不影响服务器上其他服务
+
+默认运行 `sudo ./deploy-linux.sh` 时：
+
+- 不安装、不修改、不重启 Nginx；
+- 不占用 80 或 443；
+- 不停止占用 8787 的其他进程，而是自动寻找下一个空闲端口；
+- 只创建或更新 `coco-ai-game` 服务和仓库内的 `ai-game-server` 文件；
+- 只添加实际选中端口的防火墙放行规则，不改动其他端口规则。
+
+希望优先从其他端口开始探测时：
+
+```bash
+sudo ./deploy-linux.sh --port 9000
+```
+
+如果 9000 已占用，同样会自动选择 9001、9002……。
 
 ## 配置真实参数
 
@@ -55,7 +105,7 @@ sudo -u "$(stat -c '%U' .)" nano ai-game-server/.env
 至少检查：
 
 ```dotenv
-HOST=127.0.0.1
+HOST=0.0.0.0
 PORT=8787
 DEMO_MODE=true
 
@@ -88,21 +138,23 @@ Alpine/OpenRC：
 sudo rc-service coco-ai-game restart
 ```
 
-## 使用 Nginx
+## 可选使用 Nginx
 
-已有域名时：
+默认通过服务器 IP 测试不需要 Nginx。只有确认这台服务器的 80 端口和现有站点规划允许时，
+才使用以下选项。已有域名时：
 
 ```bash
 sudo ./deploy-linux.sh --domain coco.example.com
 ```
 
-没有域名、只希望先通过服务器 IP 测试：
+明确希望由 Nginx 的 80 端口代理时：
 
 ```bash
 sudo ./deploy-linux.sh --nginx
 ```
 
-脚本会安装 Nginx、创建反向代理并保留 NDJSON 游戏进度流和 WebSocket 请求所需的请求头。
+该选项会安装 Nginx、创建反向代理并重启 Nginx，因此不应在未检查现有站点的共享服务器上使用。
+反向代理会保留 NDJSON 游戏进度流和 WebSocket 请求所需的请求头。
 服务器防火墙和云安全组需要允许 `80/tcp`。Node 服务仍只监听 `127.0.0.1:8787`，不直接暴露。
 脚本不会删除已有的 Nginx 默认站点或其他虚拟主机；如果同一地址仍显示旧页面，请根据服务器现有
 站点规划手动停用冲突配置，再运行 `sudo nginx -t && sudo systemctl reload nginx`。
@@ -136,7 +188,7 @@ sudo certbot --nginx -d coco.example.com
 ```bash
 cd /path/to/PetDesktop
 git switch codex/ai-game-pet-demo
-git pull --ff-only
+git pull --ff-only origin codex/ai-game-pet-demo
 sudo ./deploy-linux.sh
 ```
 
@@ -168,7 +220,8 @@ sudo tail -f /var/log/coco-ai-game/output.log /var/log/coco-ai-game/error.log
 本机健康检查：
 
 ```bash
-curl -I http://127.0.0.1:8787/
+APP_PORT="$(awk -F= '$1 == "PORT" { print $2; exit }' ai-game-server/.env)"
+curl -I "http://127.0.0.1:${APP_PORT}/"
 ```
 
 ## 回滚
@@ -201,6 +254,7 @@ sudo ./deploy-linux.sh
 - `.env` 必须保持 `600` 权限。
 - 公网部署必须配置长随机 `ADMIN_TOKEN`。
 - 不要在聊天、URL、日志或截图中展示 AI Key、IG、测试账号 Token。
-- Nginx 只代理到 `127.0.0.1`，不要把 Node 端口直接开放到公网。
+- 默认 IP 直连模式只开放脚本选中的 Coco 端口；云安全组也只需允许这个端口。
+- 可选 Nginx 模式会把 Node 改为只监听 `127.0.0.1`，由 Nginx 对外提供访问。
 - Settings API 不会返回已保存的密钥原值；浏览器中的管理 Token 只保存在当前标签页。
 - 游戏执行仍必须经过确认卡、下注档位、总额、频率、白名单、余额和结果数字校验。
