@@ -462,7 +462,7 @@ install_service() {
 }
 
 install_nginx() {
-  ((ENABLE_NGINX == 1)) || return
+  ((ENABLE_NGINX == 1)) || return 0
   log "Installing and configuring Nginx."
   install_packages nginx
   local server_name="_" target temp enabled_path
