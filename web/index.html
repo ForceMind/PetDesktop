@@ -14,7 +14,8 @@
   <link rel="manifest" href="./manifest.webmanifest" type="application/manifest+json">
   <link rel="icon" href="./icons/icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=22">
+  <link rel="stylesheet" href="./ai-slot.css?v=22">
 </head>
 <body>
   <div class="app-shell">
@@ -23,7 +24,8 @@
       <div class="top-actions">
         <button id="installButton" class="ghost" data-i18n="install">Install</button>
         <button id="fullscreenButton" class="ghost" data-i18n="fullscreen">Fullscreen</button>
-        <button id="panelButton" class="primary" aria-expanded="true" data-i18n="controls">Controls</button>
+        <button id="aiSlotButton" class="ai-slot-launch" aria-expanded="false" data-i18n="chat">Chat</button>
+        <button id="panelButton" class="primary" aria-expanded="true" data-i18n="controls">Settings</button>
       </div>
     </header>
 
@@ -35,11 +37,11 @@
           <div id="speechBubble" class="speech-bubble" role="status" aria-live="polite" hidden></div>
           <div id="loadingBadge" class="loading-badge" hidden data-i18n="loading">Loading move…</div>
         </div>
-        <div class="stage-status"><span id="statusText">Idle</span><span id="frameText">1 / 7</span></div>
+      <div class="stage-status" hidden aria-hidden="true"><span id="statusText">Idle</span><span id="frameText">1 / 7</span></div>
       </section>
 
       <aside id="controlPanel" class="control-panel">
-        <div class="panel-heading"><div><small data-i18n="playLab">PLAY LAB</small><h1 data-i18n="panelTitle">Make Coco your own</h1></div><button id="closePanelButton" class="icon-button" aria-label="Close">×</button></div>
+        <div class="panel-heading"><div><small data-i18n="playLab">SETTINGS</small><h1 data-i18n="panelTitle">Customize Coco</h1></div><button id="closePanelButton" class="icon-button" aria-label="Close">×</button></div>
 
         <section class="control-section">
           <h2 data-i18n="behavior">Behavior</h2>
@@ -77,6 +79,39 @@
     <button id="installTipButton" class="primary" data-i18n="install">Install</button>
     <button id="installTipClose" class="icon-button install-tip-close" aria-label="Close">×</button>
   </div>
-  <script src="./app.js" defer></script>
+  <aside id="aiSlotPanel" class="ai-slot-panel" aria-label="Chat with Coco" hidden>
+    <header class="ai-slot-header">
+      <div>
+        <span class="ai-slot-kicker">COCO CHAT</span>
+        <h2 id="aiSlotTitle">Chat</h2>
+        <p><span id="aiSlotStatusDot" class="ai-slot-status-dot"></span><span id="aiSlotStatus">Coco is resting</span></p>
+      </div>
+      <div class="ai-slot-header-actions">
+        <button id="aiChatNew" class="ai-slot-header-button" type="button" aria-label="New conversation" title="New conversation">＋</button>
+        <button id="aiChatHistory" class="ai-slot-header-button" type="button" aria-label="Conversation history" title="Conversation history">◷</button>
+        <button id="aiSlotClose" class="ai-slot-close" type="button" aria-label="Close chat">×</button>
+      </div>
+    </header>
+    <section id="aiChatHistoryPanel" class="ai-chat-history-panel" hidden>
+      <header>
+        <strong id="aiChatHistoryTitle">Conversation history</strong>
+        <button id="aiChatHistoryNew" class="primary" type="button">New conversation</button>
+      </header>
+      <div id="aiChatHistoryList" class="ai-chat-history-list"></div>
+    </section>
+    <div id="aiSlotMessages" class="ai-slot-messages" role="log" aria-live="polite"></div>
+    <section id="aiSlotTrace" class="ai-slot-trace" aria-label="Coco's game progress" hidden>
+      <div class="ai-slot-trace-title"><strong id="aiSlotTraceTitle">Coco's game progress</strong><span id="aiSlotTraceProgress">0 / 8</span></div>
+      <ol id="aiSlotTraceList"></ol>
+    </section>
+    <form id="aiSlotForm" class="ai-slot-composer">
+      <label id="aiSlotInputLabel" class="sr-only" for="aiSlotInput">Message Coco</label>
+      <textarea id="aiSlotInput" rows="1" maxlength="1000" placeholder="For example: play JetSet for 1 round, bet 10"></textarea>
+      <button id="aiSlotSend" class="primary" type="submit">Send</button>
+    </form>
+    <p id="aiSlotDisclaimer" class="ai-slot-disclaimer">Coco starts only after you confirm the card.</p>
+  </aside>
+  <script src="./app.js?v=20" defer></script>
+  <script src="./ai-slot.js?v=22" defer></script>
 </body>
 </html>

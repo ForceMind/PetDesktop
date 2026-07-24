@@ -18,16 +18,17 @@
     pause: $("#pauseButton"), fullscreen: $("#fullscreenButton"), install: $("#installButton"),
     installPanel: $("#installPanelButton"), installTip: $("#installTip"),
     installTipText: $("#installTipText"), installTipButton: $("#installTipButton"),
-    installTipClose: $("#installTipClose")
+    installTipClose: $("#installTipClose"), chatPanel: $("#aiSlotPanel")
   };
   const context = ui.canvas.getContext("2d", { alpha: true });
   const imageCache = new Map();
 
   const messages = {
     en: {
-      subtitle: "Interactive web companion", install: "Install", fullscreen: "Fullscreen", controls: "Controls",
+      subtitle: "Interactive web companion", install: "Install", fullscreen: "Fullscreen", controls: "Settings",
+      chat: "Chat",
       hint: "Drag Coco · click or tap different areas · wheel or pinch to resize", loading: "Loading move…",
-      playLab: "PLAY LAB", panelTitle: "Make Coco your own", behavior: "Behavior",
+      playLab: "SETTINGS", panelTitle: "Customize Coco", behavior: "Behavior",
       autoShow: "Auto performances", autoShowHelp: "Coco occasionally performs on its own",
       idleMotion: "Idle gestures", idleMotionHelp: "Subtle movement between quiet stands",
       dialogue: "Dialogue", dialogueHelp: "Show adaptive speech bubbles", language: "Language",
@@ -48,9 +49,10 @@
       dialogueFeet: "My feet want to jump!"
     },
     zh: {
-      subtitle: "可以互动的网页版桌宠", install: "安装应用", fullscreen: "全屏", controls: "控制台",
+      subtitle: "可以互动的网页版桌宠", install: "安装应用", fullscreen: "全屏", controls: "设置",
+      chat: "聊天",
       hint: "拖动 Coco · 点击不同部位 · 滚轮或双指调整大小", loading: "动作加载中…",
-      playLab: "互动实验室", panelTitle: "打造你的 Coco", behavior: "行为",
+      playLab: "设置", panelTitle: "自定义 Coco", behavior: "行为",
       autoShow: "自动表演", autoShowHelp: "Coco 偶尔会自己表演动作",
       idleMotion: "待机小动作", idleMotionHelp: "安静站立之间偶尔活动一下",
       dialogue: "对白", dialogueHelp: "显示自适应对白气泡", language: "语言",
@@ -76,10 +78,13 @@
   let deferredInstallPrompt;
   let hiddenAt = 0;
   const saved = readSettings();
+  const isChineseSystem = (navigator.language || "en").toLowerCase().startsWith("zh");
   const compactViewport = window.matchMedia("(max-width: 850px)");
   const hasSavedPanelState = Object.prototype.hasOwnProperty.call(saved, "panelOpen");
   const state = {
-    languageMode: saved.languageMode || "auto",
+    languageMode: isChineseSystem && ["auto", "zh", "en"].includes(saved.languageMode)
+      ? saved.languageMode
+      : isChineseSystem ? "auto" : "en",
     outfit: saved.outfit || "default",
     background: saved.background || "desk",
     size: Number(saved.size) || (compactViewport.matches ? 280 : 320),
@@ -89,6 +94,8 @@
     panelOpen: hasSavedPanelState ? saved.panelOpen !== false : !compactViewport.matches,
     x: Number.isFinite(saved.x) ? saved.x : null,
     y: Number.isFinite(saved.y) ? saved.y : null,
+    chatPanelOpen: false,
+    chatRestoreX: null,
     active: null,
     queued: null,
     preparing: false,
@@ -117,14 +124,17 @@
     const persistent = {
       languageMode: state.languageMode, outfit: state.outfit, background: state.background,
       size: state.size, auto: state.auto, idle: state.idle, dialogue: state.dialogue,
-      panelOpen: state.panelOpen, x: state.x, y: state.y
+      panelOpen: state.panelOpen,
+      x: Number.isFinite(state.chatRestoreX) ? state.chatRestoreX : state.x,
+      y: state.y
     };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(persistent));
   }
 
   function currentLanguage() {
+    if (!isChineseSystem) return "en";
     if (state.languageMode !== "auto") return state.languageMode;
-    return (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+    return "zh";
   }
 
   function t(key) { return messages[currentLanguage()][key] || messages.en[key] || key; }
@@ -177,6 +187,39 @@
     ];
   }
 
+  function allFramePaths() {
+    return [...new Set([
+      ...data.outfits.flatMap((outfit) => idleFramePaths(outfit.id)),
+      ...data.actions.flatMap(actionFramePaths)
+    ])];
+  }
+
+  function scheduleFramePreload(registration) {
+    const start = () => {
+      const urls = allFramePaths();
+      const worker = registration?.active || registration?.waiting || registration?.installing;
+      if (worker) {
+        worker.postMessage({ type: "PRELOAD_FRAMES", urls });
+        return;
+      }
+      void warmHttpCache(urls);
+    };
+    if ("requestIdleCallback" in window) window.requestIdleCallback(start, { timeout: 2500 });
+    else window.setTimeout(start, 500);
+  }
+
+  async function warmHttpCache(urls) {
+    const queue = [...urls];
+    const workers = Array.from({ length: 6 }, async () => {
+      while (queue.length) {
+        const path = queue.shift();
+        try { await fetch(path, { cache: "force-cache" }); }
+        catch { /* A missing optional frame must not block Coco. */ }
+      }
+    });
+    await Promise.all(workers);
+  }
+
   async function loadIdle(outfitId) {
     const requested = outfitId;
     const frames = await Promise.all(idleFramePaths(requested).map(image));
@@ -211,6 +254,7 @@
     populateSelects();
     ui.pause.textContent = state.paused ? t("resume") : t("pause");
     if (!state.active) ui.status.textContent = state.paused ? t("pausedStatus") : t("idleStatus");
+    window.dispatchEvent(new CustomEvent("coco:languagechange", { detail: { language: currentLanguage() } }));
   }
 
   function populateSelects() {
@@ -237,7 +281,16 @@
   function clampPosition() {
     const width = ui.stage.clientWidth;
     const height = ui.stage.clientHeight;
-    state.x = Math.max(-state.size * .55, Math.min(width - state.size * .45, state.x));
+    const minimumX = -state.size * .55;
+    let maximumX = width - state.size * .45;
+    const chat = chatPanelRect();
+    if (chat) {
+      const stage = ui.stage.getBoundingClientRect();
+      const safeRight = chat.left - stage.left - 16;
+      const chatSafeMaximum = safeRight - state.size;
+      if (chatSafeMaximum >= minimumX) maximumX = Math.min(maximumX, chatSafeMaximum);
+    }
+    state.x = Math.max(minimumX, Math.min(maximumX, state.x));
     state.y = Math.max(0, Math.min(height - state.size * .35, state.y));
   }
 
@@ -259,10 +312,23 @@
     if (ui.bubble.hidden) return;
     const stage = ui.stage.getBoundingClientRect();
     const pet = ui.pet.getBoundingClientRect();
+    const chat = chatPanelRect();
     const needed = Math.min(310, Math.max(180, ui.bubble.scrollWidth)) + 20;
-    if (stage.right - pet.right >= needed) ui.bubble.dataset.side = "right";
-    else if (pet.left - stage.left >= needed) ui.bubble.dataset.side = "left";
+    const rightBoundary = chat ? Math.min(stage.right, chat.left - 12) : stage.right;
+    const roomOnRight = rightBoundary - pet.right;
+    const roomOnLeft = pet.left - stage.left;
+    if (chat && roomOnLeft >= needed) ui.bubble.dataset.side = "left";
+    else if (roomOnRight >= needed) ui.bubble.dataset.side = "right";
+    else if (roomOnLeft >= needed) ui.bubble.dataset.side = "left";
     else ui.bubble.dataset.side = "above";
+  }
+
+  function chatPanelRect() {
+    if (!state.chatPanelOpen || !ui.chatPanel || ui.chatPanel.hidden) return null;
+    const chat = ui.chatPanel.getBoundingClientRect();
+    const stage = ui.stage.getBoundingClientRect();
+    if (chat.width <= 0 || chat.height <= 0 || chat.left <= stage.left || chat.left >= stage.right) return null;
+    return chat;
   }
 
   function showBubble(text, milliseconds = 2400, force = false) {
@@ -482,6 +548,7 @@
       const dy = event.clientY - state.drag.startY;
       if (Math.abs(dx) + Math.abs(dy) > 5) state.drag.moved = true;
       if (state.drag.moved) {
+        state.chatRestoreX = null;
         state.x = state.drag.petX + dx;
         state.y = state.drag.petY + dy;
         applyGeometryWithoutReset();
@@ -550,6 +617,18 @@
     ui.pause.addEventListener("click", () => setPaused(!state.paused));
     ui.panelButton.addEventListener("click", () => setPanel(!state.panelOpen));
     ui.closePanel.addEventListener("click", () => setPanel(false));
+    window.addEventListener("coco:chatpanelchange", (event) => {
+      const open = Boolean(event.detail?.open);
+      if (open) {
+        state.chatRestoreX = state.x;
+        setPanel(false);
+      } else if (Number.isFinite(state.chatRestoreX)) {
+        state.x = state.chatRestoreX;
+        state.chatRestoreX = null;
+      }
+      state.chatPanelOpen = open;
+      requestAnimationFrame(applyGeometryWithoutReset);
+    });
     ui.fullscreen.addEventListener("click", () => {
       if (!document.fullscreenEnabled) return;
       document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
@@ -598,8 +677,31 @@
     document.querySelector(".workspace").classList.toggle("panel-closed", !open);
     ui.panelButton.setAttribute("aria-expanded", String(open));
     saveSettings();
+    window.dispatchEvent(new CustomEvent("coco:settingspanelchange", { detail: { open } }));
     requestAnimationFrame(applyGeometryWithoutReset);
   }
+
+  window.CocoPet = {
+    get ready() { return Boolean(data && state.idleFrames.length); },
+    say(text, milliseconds = 4200) {
+      showBubble(String(text), milliseconds, true);
+    },
+    perform(actionId, text = "") {
+      if (text) showBubble(String(text), 4200, true);
+      requestAction(findAction(actionId), "body", false);
+    },
+    reactToSlot(result, message) {
+      showBubble(String(message), 5000, true);
+      const actionId = result.net > 0 ? "dance" : result.net < 0 ? "sway" : "nod";
+      requestAction(findAction(actionId), "body", false);
+    },
+    getLanguage() {
+      return currentLanguage();
+    },
+    isChineseSystem() {
+      return isChineseSystem;
+    }
+  };
 
   async function boot() {
     try {
@@ -609,6 +711,7 @@
       ui.auto.checked = state.auto;
       ui.idle.checked = state.idle;
       ui.dialogue.checked = state.dialogue;
+      ui.language.closest("label").hidden = !isChineseSystem;
       ui.language.value = state.languageMode;
       ui.background.value = state.background;
       localizePage();
@@ -622,13 +725,26 @@
       }
       else setTimeout(showInstallTip, 2600);
       if (!document.fullscreenEnabled) ui.fullscreen.hidden = true;
+      let workerRegistration;
+      if ("serviceWorker" in navigator && location.protocol !== "file:") {
+        workerRegistration = await navigator.serviceWorker.register("./sw.js");
+      }
       await loadIdle(state.outfit);
       requestAnimationFrame(render);
-      if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js");
+      window.dispatchEvent(new CustomEvent("coco:ready"));
+      if (workerRegistration) {
+        navigator.serviceWorker.ready
+          .then((registration) => scheduleFramePreload(registration))
+          .catch(() => scheduleFramePreload(workerRegistration));
+      } else {
+        scheduleFramePreload();
+      }
     } catch (error) {
       console.error(error);
       ui.loading.hidden = false;
-      ui.loading.textContent = "Unable to start Coco / Coco 启动失败";
+      ui.loading.textContent = currentLanguage() === "zh"
+        ? "Coco 启动失败，请刷新页面重试。"
+        : "Coco could not start. Refresh the page and try again.";
     }
   }
 

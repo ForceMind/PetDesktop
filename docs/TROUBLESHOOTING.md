@@ -67,3 +67,15 @@ v1.8.0 起，Windows 必须直接调用 `ApplyLayeredBitmap(frame, frameX, frame
 ## GitHub 构建失败
 
 先在本地运行文档中的全部测试，再在 Actions 日志中区分：资源验证失败、Windows 编译失败、Swift 编译失败或 Release 上传失败。不要复用已有标签；修复后发布新补丁版本。
+
+## Linux 部署后 AI 游戏页面无法打开
+
+先从服务器本机检查 Node 服务：
+
+```bash
+curl -I http://127.0.0.1:8787/
+sudo systemctl status coco-ai-game --no-pager
+sudo journalctl -u coco-ai-game -n 200 --no-pager
+```
+
+Alpine/OpenRC 使用 `rc-service coco-ai-game status`，日志位于 `/var/log/coco-ai-game/`。如果本机健康检查成功但公网无法打开，检查 Nginx、DNS、防火墙和云安全组；不要直接把 Node 端口开放到公网。修改 `.env` 后重新运行 `sudo ./deploy-linux.sh`，它会保留配置并重建服务。完整步骤见 [`AI_GAME_SERVER_DEPLOYMENT.md`](AI_GAME_SERVER_DEPLOYMENT.md)。

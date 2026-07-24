@@ -43,6 +43,17 @@ py tools\package_cloudflare.py dist\CocoWebPet-Cloudflare-Pages.zip
 
 PWA 安装要求 HTTPS（`localhost` 仅用于开发）、有效 manifest、Service Worker，以及 192×192 和 512×512 图标。Chromium 会在满足条件后启用网页内安装按钮；iPhone/iPad 不提供该事件，需要在 Safari 的分享菜单选择“添加到主屏幕”。
 
+## AI 游戏服务器
+
+本地 Windows 验证使用根目录 `run-ai-game-demo.cmd`；Linux 服务器在拉取分支后运行：
+
+```bash
+chmod +x deploy-linux.sh
+sudo ./deploy-linux.sh
+```
+
+脚本会保留被 Git 忽略的 `ai-game-server/.env`，安装锁定依赖、运行 Mock 测试、构建服务器、安装系统服务并执行本机健康检查。需要 Nginx 时使用 `--domain coco.example.com` 或 `--nginx`。发行版支持、首次配置、HTTPS、日志、更新与回滚见 [`AI_GAME_SERVER_DEPLOYMENT.md`](AI_GAME_SERVER_DEPLOYMENT.md)。
+
 ## 发布前检查
 
 ```powershell

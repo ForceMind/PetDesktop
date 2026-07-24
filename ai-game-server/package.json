@@ -1,0 +1,37 @@
+{
+  "name": "coco-ai-game-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "discover:slots": "node scripts/discover-coconut-slots.mjs",
+    "inspect:lobby": "node scripts/inspect-coconut-lobby.mjs",
+    "verify:coconut": "node scripts/verify-coconut-bootstrap.mjs",
+    "verify:chat": "node scripts/verify-coco-chat.mjs",
+    "test:bubble-layout": "node scripts/test-bubble-layout.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run typecheck && esbuild src/server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.mjs",
+    "start": "node dist/server.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "protobufjs": "^7.6.5",
+    "ws": "^8.21.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.34",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.5",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

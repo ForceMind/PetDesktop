@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+// Compatible superset of the supplied lobby.proto. Field 4 is retained because
+// the currently deployed lobby still sends its legacy per-user launch URL there.
+// The server adapter decodes that field for wire compatibility but never returns
+// it to the browser because it contains account parameters.
+message Game {
+  int32 id = 1;
+  string name = 2;
+  string icon = 3;
+  string legacyUrl = 4;
+  int32 type = 5;
+  int32 category = 6;
+  int32 players = 7;
+  int32 v = 8;
+}
+
+message User {
+  string uid = 1;
+  string nickname = 2;
+  string avatar = 3;
+  int32 token = 4;
+}
+
+message InitReq {}
+
+message InitRet {
+  User user = 1;
+  repeated Game gameList = 2;
+}
+
+message GameDetailReq {
+  int32 id = 1;
+  int32 v = 2;
+}
+
+message GameDetailRet {
+  int32 id = 1;
+  string url = 2;
+  int32 heat = 3;
+  int32 rtp = 4;
+  int32 volatility = 5;
+  int32 minBet = 6;
+  int32 maxBet = 7;
+  string tags = 8;
+  string features = 9;
+  string rules = 10;
+  int32 v = 11;
+}

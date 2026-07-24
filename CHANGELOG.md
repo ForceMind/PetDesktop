@@ -4,6 +4,11 @@
 
 ## 未发布
 
+- 新增基于现有 Web Coco 与完整动作资源的 AI 游戏 Demo：支持自然聊天、会话历史、设置页、游戏列表、确认卡、批量进度和多样化结果总结。
+- AI 游戏后台采用输入策略、业务意图路由、状态机、工具授权、真实执行、数字复算和输出审查的分层链路；列表与确认卡修改优先由代码处理，减少模型调用。
+- Demo 首批支持 GameSlots、Bingo、Charmed、FruitSpin 与 JetSet；下注档位以各游戏 Init 返回值为准，单次总下注上限为 50,000 TOKEN。
+- 新增可重复运行的 `deploy-linux.sh`，覆盖 apt、dnf、yum、zypper、pacman、apk 及 systemd/OpenRC，并可选配置 Nginx。
+- 本地 `.env`、AI Key、游戏账号和私密参数继续由 Git 忽略，设置 API 不返回已保存的密钥原值。
 - Web 页面移除可见的 GitHub 链接与品牌字样，适合独立部署到 Cloudflare Pages。
 - 完成移动端适配：动态视口与刘海安全区、默认收起的底部控制抽屉、44px 触摸目标、触摸拖动、部位点击和双指缩放。
 - 修复 Cloudflare Pages 包中首张待机帧无法加载：发布帧改为根目录 `frames/`，专用 ZIP 脚本使用跨平台 `/` 路径，并在打包阶段强制校验首帧与全部 222 张帧。

@@ -51,6 +51,22 @@ python -m http.server 8080
 
 自动检查覆盖 32 个动作、5 套换装、所有帧路径、英文对白纯英文、动作队列、Canvas 整帧绘制、设置存储、移动端双指状态和 PWA 注册。浏览器人工检查应覆盖拖动、七区域点击、滚轮缩放、控制台、390px 移动端窄屏、触摸拖动与双指缩放、横竖屏、安全区、离线后再次打开，以及子路径下的相对 URL。
 
+### AI 游戏 Demo
+
+```powershell
+npm --prefix ai-game-server ci
+npm --prefix ai-game-server test
+npm --prefix ai-game-server run build
+node --check web\ai-slot.js
+node --check web\admin.js
+node --check ai-game-server\scripts\test-bubble-layout.mjs
+node --check ai-game-server\scripts\verify-coco-chat.mjs
+```
+
+测试覆盖输入策略、聊天边界、五个游戏适配器、动态 Init 下注档位、确认卡修改、局数与总额限制、工具授权、批量进度、Play 数字复算、输出清理、地址栏 `userId` 覆盖和敏感设置脱敏。浏览器 Mock 验收还应确认首次不自动弹出聊天、聊天与设置不叠加、角色旁气泡不被聊天框遮挡、左下角不显示动作/帧调试信息，以及进度从 0/N 更新到 N/N。
+
+真实测试服脚本会产生实际游戏请求，只有在明确配置测试账号、对应 IG 并确认允许消耗 TOKEN 时才运行；普通发布检查使用 Mock 测试，不调用真实 Play。
+
 ## 人工验收
 
 1. 启动时 Coco 双臂自然放下，不是招手姿势。

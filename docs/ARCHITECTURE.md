@@ -62,6 +62,24 @@ Windows 的分层窗口渲染将目标坐标、目标尺寸和新位图一次性
 - 拖动、缩放、语言、服装、背景和行为开关保存在 `localStorage`；PWA 缓存与用户设置互不混用。
 - `tools/assemble_web.py` 与 `.github/workflows/pages.yml` 将网页外壳和 222 张唯一帧组装到临时 Pages 工件，不在 Git 中提交第二份动画文件，也不上传 70MB 的重复逻辑帧。
 
+## AI 游戏 Agent
+
+`ai-game-server` 为同一套 Web Coco 提供聊天、设置和游戏服务，不复制前端或角色资源。浏览器只接收公开游戏信息和当前会话状态；AI Key、游戏凭证、账号默认值、工具白名单与额度都留在服务器。
+
+一条可能执行游戏的消息按固定顺序处理：
+
+1. 输入清洗、提示注入与职责范围判断；
+2. 可由代码确定的列表查询、卡片修改和确认操作直接路由，不请求大模型；
+3. 自然聊天或需要理解的游戏指令才交给 OpenAI 兼容模型；
+4. 模型只能提出结构化意图，不能直接访问游戏接口；
+5. 服务端状态机检查会话、白名单、Init 下注档位、局数、单次总额、余额与确认状态；
+6. Play 结果由代码解析和复算，数字校验通过后才允许模型润色自然语言；
+7. 输出审查移除内部实现、密钥、账号和不实执行声明。
+
+批量执行最多一次确认 20 局；执行时逐局写入进度流，每 5 局生成一次阶段播报，最后再返回代码计算的总下注、总赢得、净结果和余额。模型只改变表达方式，不改变数值事实。
+
+服务器配置保存在被 Git 忽略的 `ai-game-server/.env`。设置 API 对敏感值只返回“是否已配置”，不会回传原文。详细运行方式见 [`ai-game-server/README.md`](../ai-game-server/README.md)，Linux 部署见 [`AI_GAME_SERVER_DEPLOYMENT.md`](AI_GAME_SERVER_DEPLOYMENT.md)。
+
 ## 旧资源
 
 `assets/rig`、`assets/frame_animation` 等目录保留为历史研究资料。生产绘制路径只使用 `assets/frame_animation_v2/runtime_frames.zip` 中的完整帧。

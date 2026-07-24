@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101a2d">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Coco Settings</title>
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+  <header class="admin-topbar">
+    <a class="admin-brand" href="./">
+      <span>C</span>
+      <div><strong>Coco Settings</strong><small data-i18n="controlPlane">Safety policies & configuration</small></div>
+    </a>
+    <div class="admin-top-actions">
+      <span id="connectionState" class="connection-state" data-state="working"><i></i><b data-i18n="connecting">Connecting</b></span>
+      <a class="button secondary" href="./?ai=1" data-i18n="backToCoco">Back to Coco</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">COCO SETTINGS</span>
+        <h1 data-i18n="title">Settings</h1>
+        <p data-i18n="intro">Configure model, game APIs, account adapter, URL parameters and hard execution limits. Secrets are write-only.</p>
+      </div>
+      <div class="policy-card">
+        <strong data-i18n="policyActive">Policy gateway active</strong>
+        <ul>
+          <li data-i18n="policyInput">Input scope and prompt-injection checks</li>
+          <li data-i18n="policyTool">Server-side tool authorization and confirmation</li>
+          <li data-i18n="policyOutput">Output leakage and execution-claim review</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="authPanel" class="auth-panel" hidden>
+      <div>
+        <strong data-i18n="authRequired">Settings access token required</strong>
+        <p data-i18n="authHelp">Enter the settings access token. It stays in this browser tab and is never placed in the URL.</p>
+      </div>
+      <div class="auth-fields">
+        <input id="adminToken" type="password" autocomplete="off" placeholder="Settings access token">
+        <button id="connectButton" class="button primary" type="button" data-i18n="connect">Connect</button>
+      </div>
+    </section>
+
+    <form id="configForm" hidden>
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>01</span><h2 data-i18n="runtime">Runtime</h2></div>
+          <p data-i18n="runtimeHelp">Changes apply immediately and reset in-memory chat sessions.</p>
+        </div>
+        <label class="toggle">
+          <span><strong data-i18n="demoMode">Demo safety mode</strong><small data-i18n="demoModeHelp">Play is blocked when this switch is off.</small></span>
+          <input id="demoMode" type="checkbox"><i></i>
+        </label>
+      </section>
+
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>02</span><h2 data-i18n="aiProvider">AI provider</h2></div>
+          <p data-i18n="secretHelp">Configured secrets are never returned to this page.</p>
+        </div>
+        <div class="field-grid">
+          <label><span data-i18n="apiStyle">API style</span><select id="aiApiStyle"><option value="chat-completions">Chat Completions</option><option value="responses">Responses API</option></select></label>
+          <label><span data-i18n="model">Model</span><input id="aiModel" required></label>
+          <label class="wide"><span data-i18n="baseUrl">Base URL</span><input id="aiBaseUrl" type="url" required></label>
+          <label><span>Chat Completions path</span><input id="aiChatPath" required></label>
+          <label><span>Responses path</span><input id="aiResponsesPath" required></label>
+          <label><span data-i18n="timeout">Timeout (ms)</span><input id="aiTimeout" type="number" min="1000" max="120000" required></label>
+          <label><span data-i18n="reasoning">Reasoning effort</span><select id="aiReasoning"><option>none</option><option>low</option><option>medium</option><option>high</option></select></label>
+          <label class="toggle compact"><span><strong>JSON mode</strong></span><input id="aiJsonMode" type="checkbox"><i></i></label>
+          <label class="wide secret-field">
+            <span>AI API key <em id="aiKeyState"></em></span>
+            <input id="aiApiKey" type="password" autocomplete="new-password" placeholder="Leave blank to keep current key">
+            <small><input id="clearAiKey" type="checkbox"> <b data-i18n="clearSecret">Clear configured secret</b></small>
+          </label>
+        </div>
+      </section>
+
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>03</span><h2 data-i18n="gameApi">Game API & account</h2></div>
+          <p data-i18n="gameHelp">Leave Base URL empty to use the deterministic local mock.</p>
+        </div>
+        <div class="field-grid">
+          <label><span data-i18n="gameProvider">Provider adapter</span><select id="gameProvider"><option value="mock">Local Mock</option><option value="generic">Generic JSON API</option><option value="coconut">Coconut Lobby + Slot</option></select></label>
+          <label class="wide"><span data-i18n="baseUrl">Base URL</span><input id="gameBaseUrl" type="url"></label>
+          <label><span data-i18n="listPath">Game list path</span><input id="gameListPath" required></label>
+          <label><span data-i18n="initPath">Init path</span><input id="gameInitPath" required></label>
+          <label><span data-i18n="playPath">Play path</span><input id="gamePlayPath" required></label>
+          <label class="wide"><span data-i18n="lobbyBaseUrl">Lobby Base URL</span><input id="lobbyBaseUrl" type="url" required></label>
+          <label><span data-i18n="lobbyLoginPath">Lobby login path</span><input id="lobbyLoginPath" required></label>
+          <label><span data-i18n="lobbyIg">Allowed Lobby IG</span><input id="lobbyIg"></label>
+          <label><span data-i18n="slotIg">Server-side Slot IG</span><input id="slotIg"></label>
+          <label><span data-i18n="bingoIg">Server-side Bingo IG</span><input id="bingoIg"></label>
+          <label><span data-i18n="bingoInitPath">Bingo init path</span><input id="bingoInitPath" required></label>
+          <label><span data-i18n="bingoPlayPath">Bingo Play path</span><input id="bingoPlayPath" required></label>
+          <label><span data-i18n="charmedIg">Server-side Charmed IG</span><input id="charmedIg"></label>
+          <label><span data-i18n="charmedInitPath">Charmed init path</span><input id="charmedInitPath" required></label>
+          <label><span data-i18n="charmedPlayPath">Charmed Play path</span><input id="charmedPlayPath" required></label>
+          <label><span data-i18n="fruitIg">Server-side FruitSpin IG</span><input id="fruitIg"></label>
+          <label><span data-i18n="fruitInitPath">FruitSpin init path</span><input id="fruitInitPath" required></label>
+          <label><span data-i18n="fruitPlayPath">FruitSpin Play path</span><input id="fruitPlayPath" required></label>
+          <label><span data-i18n="jetsetIg">Server-side JetSet IG</span><input id="jetsetIg"></label>
+          <label><span data-i18n="jetsetInitPath">JetSet init path</span><input id="jetsetInitPath" required></label>
+          <label><span data-i18n="jetsetPlayPath">JetSet Play path</span><input id="jetsetPlayPath" required></label>
+          <label><span data-i18n="playableIds">Playable game IDs</span><input id="playableIds" placeholder="6001,6007,6014,6036,6037"></label>
+          <label><span data-i18n="wagerMultiplier">Wager multiplier</span><input id="wagerMultiplier" type="number" min="1" max="10000" required></label>
+          <label class="wide"><span data-i18n="gameOrigin">Game web origin</span><input id="gameOrigin" type="url" required></label>
+            <label><span data-i18n="accountId">Default game account ID</span><input id="gameAccountId"></label>
+          <label><span data-i18n="currency">Currency</span><input id="gameCurrency" required></label>
+          <label><span data-i18n="timeout">Timeout (ms)</span><input id="gameTimeout" type="number" min="1000" max="60000" required></label>
+          <label class="secret-field">
+            <span>Game API key <em id="gameKeyState"></em></span>
+            <input id="gameApiKey" type="password" autocomplete="new-password" placeholder="Leave blank to keep current key">
+            <small><input id="clearGameKey" type="checkbox"> <b data-i18n="clearSecret">Clear configured secret</b></small>
+          </label>
+          <label class="secret-field">
+            <span>Account token <em id="accountTokenState"></em></span>
+            <input id="gameAccountToken" type="password" autocomplete="new-password" placeholder="Leave blank to keep current token">
+            <small><input id="clearAccountToken" type="checkbox"> <b data-i18n="clearSecret">Clear configured secret</b></small>
+          </label>
+        </div>
+      </section>
+
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>04</span><h2 data-i18n="urlParams">Address-bar parameters</h2></div>
+          <p data-i18n="urlHelp">Only allowlisted names enter the server session. Values are never shown here or sent to the model.</p>
+        </div>
+        <div class="field-grid">
+          <label class="wide"><span data-i18n="allowedParams">Allowed parameter names (comma separated)</span><input id="launchParamKeys" required></label>
+          <label><span data-i18n="accountParam">Account parameter name</span><input id="accountParam" required></label>
+        </div>
+      </section>
+
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>05</span><h2 data-i18n="catalog">Game allowlist</h2></div>
+          <p data-i18n="catalogHelp">JSON array. An empty array loads the list from the configured Game API.</p>
+        </div>
+        <label><textarea id="gameCatalog" rows="11" spellcheck="false"></textarea></label>
+      </section>
+
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>06</span><h2 data-i18n="limits">Hard execution limits</h2></div>
+          <p data-i18n="limitsHelp">These checks run on the server and cannot be overridden by the model.</p>
+        </div>
+        <div class="field-grid limits-grid">
+          <label><span data-i18n="maxSpins">Max rounds/request</span><input id="maxSpins" type="number" min="1" max="100" required></label>
+          <label><span data-i18n="maxTotal">Max total bet</span><input id="maxTotalBet" type="number" min="0.01" step="0.01" required></label>
+          <label><span data-i18n="rate">Executions/minute</span><input id="ratePerMinute" type="number" min="1" max="1000" required></label>
+          <label><span data-i18n="ttl">Confirmation TTL (seconds)</span><input id="actionTtl" type="number" min="30" max="900" required></label>
+        </div>
+      </section>
+
+      <div class="save-bar">
+        <div><strong id="saveStatus" data-i18n="readyToSave">Review values before saving.</strong><small data-i18n="saveNote">Keys remain unchanged when their fields are blank.</small></div>
+        <button id="saveButton" class="button primary" type="submit" data-i18n="saveApply">Save & apply</button>
+      </div>
+    </form>
+  </main>
+  <script src="./admin.js" defer></script>
+</body>
+</html>
