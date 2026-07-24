@@ -164,6 +164,7 @@ export type AdminUpdate = z.infer<typeof adminUpdateSchema>;
 export function adminConfigView(config: AppConfig) {
   return {
     demoMode: config.demoMode,
+    chatEnabled: config.chatEnabled,
     ai: {
       apiStyle: config.ai.apiStyle,
       baseUrl: config.ai.baseUrl,

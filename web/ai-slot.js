@@ -45,6 +45,7 @@
       completed: "All done!",
       validationFailed: "This game didn’t go through",
       unknownError: "Coco got a little lost.",
+      chatDisabled: "Coco is resting for now. Come back a little later.",
       entryError: "Your game identity is missing. Please reopen Coco from the correct game entry.",
       gameUnavailable: "The game portal is unavailable right now. Please try again in a moment.",
       actionExpired: "That confirmation has expired. Ask Coco to prepare a new one.",
@@ -96,6 +97,7 @@
       completed: "完成啦！",
       validationFailed: "这局没有顺利完成",
       unknownError: "Coco 刚才有点迷路了。",
+      chatDisabled: "Coco 现在正在休息，晚一点再来找我吧。",
       entryError: "没有找到游戏身份，请从正确的游戏入口重新打开页面。",
       gameUnavailable: "游戏传送门暂时没有回应，过一会儿再试吧。",
       actionExpired: "这张确认卡已经过期，请让 Coco 重新准备一张。",
@@ -396,7 +398,11 @@
         headers: { "content-type": "application/json", accept: "application/x-ndjson" },
         body: JSON.stringify({ sessionId: state.sessionId, language: language() })
       });
-      if (!response.ok || !response.body) throw new CocoRequestError("GAME_UNAVAILABLE");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new CocoRequestError(payload.error?.code || "GAME_UNAVAILABLE", payload.error?.message);
+      }
+      if (!response.body) throw new CocoRequestError("GAME_UNAVAILABLE");
       await consumeStream(response.body);
     } catch (error) {
       appendSystemError(messageOf(error));
@@ -792,6 +798,7 @@
 
   function messageOf(error) {
     if (!(error instanceof CocoRequestError)) return t("unknownError");
+    if (error.code === "CHAT_DISABLED") return t("chatDisabled");
     if (["GAME_ACCOUNT_REQUIRED", "LOBBY_IG_REQUIRED", "LOBBY_IG_MISMATCH"].includes(error.code)) {
       return t("entryError");
     }

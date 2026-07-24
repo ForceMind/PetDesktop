@@ -12,6 +12,10 @@
       authHelp: "输入设置访问 Token。它只保留在当前标签页，不会进入地址栏。", connect: "连接",
       runtime: "运行模式", runtimeHelp: "配置立即生效，并会重置内存中的聊天会话。", demoMode: "Demo 安全模式",
       demoModeHelp: "关闭时将拒绝所有 play 调用。", aiProvider: "AI 模型服务", secretHelp: "已配置的密钥永远不会返回到此页面。",
+      chatControl: "聊天与游戏总开关", chatControlHelp: "关闭后，服务器会阻止新的聊天、AI 和游戏请求；设置页仍可使用。",
+      chatEnabled: "聊天已开启", chatDisabled: "聊天已关闭", disableChat: "一键关闭聊天", enableChat: "重新开启聊天",
+      chatStateChanging: "正在切换…", chatStateOn: "聊天已开启，新的聊天和游戏请求可以继续。",
+      chatStateOff: "聊天已关闭，前端无法再请求聊天、AI 或游戏。",
       apiStyle: "API 类型", model: "模型", baseUrl: "基础地址", timeout: "超时（毫秒）", reasoning: "推理强度",
       clearSecret: "清除已配置密钥", gameApi: "游戏接口与账号", gameHelp: "基础地址留空时使用可重复的本地 Mock。",
       gameProvider: "游戏适配器", listPath: "游戏列表路径", initPath: "初始化路径", playPath: "Play 路径",
@@ -29,7 +33,15 @@
       maxTotal: "单次最大总注", rate: "每分钟执行次数", ttl: "确认卡有效期（秒）", readyToSave: "保存前请检查配置。",
       saveNote: "密钥输入框留空时保持原值。", saveApply: "保存并应用", connected: "设置服务已连接", unauthorized: "等待设置授权",
       configured: "已配置", notConfigured: "未配置", loading: "正在读取配置…", saved: "配置已保存并立即生效；已有聊天会话已重置。",
-      saveFailed: "保存失败", invalidCatalog: "游戏白名单必须是有效的 JSON 数组。"
+      saveFailed: "保存失败", invalidCatalog: "游戏白名单必须是有效的 JSON 数组。",
+      operations: "浏览器活动与日志", operationsHelp: "不记录聊天原文、密钥、IG 值或地址栏参数值。", refresh: "刷新",
+      knownBrowsers: "最近打开过的浏览器", activeBrowsers: "5 分钟内活跃", recentEvents: "最近事件",
+      browserList: "打开过 Coco 的浏览器", browser: "浏览器", maskedIp: "脱敏 IP", lastActive: "最后活动",
+      visits: "打开次数", lastPath: "最后页面", eventLog: "运行日志", noBrowsers: "还没有浏览器访问记录。",
+      noEvents: "还没有运行日志。", operationsFailed: "暂时无法读取运行日志。",
+      outcomeOk: "成功", outcomeBlocked: "已阻止", outcomeFailed: "失败",
+      pageOpen: "打开页面", chatBootstrap: "开始新对话", chatRequest: "聊天请求", gameExecute: "进行游戏",
+      settingsSaved: "保存设置", chatStateChanged: "切换聊天开关", adminAuth: "设置授权失败", chatBlocked: "请求被总开关阻止"
     },
     en: {
       controlPlane: "Safety policies & configuration", connecting: "Connecting", backToCoco: "Back to Coco", title: "Settings",
@@ -39,6 +51,10 @@
       authHelp: "Enter the settings access token. It stays in this browser tab and is never placed in the URL.", connect: "Connect",
       runtime: "Runtime", runtimeHelp: "Changes apply immediately and reset in-memory chat sessions.", demoMode: "Demo safety mode",
       demoModeHelp: "Play is blocked when this switch is off.", aiProvider: "AI provider", secretHelp: "Configured secrets are never returned to this page.",
+      chatControl: "Chat and game master switch", chatControlHelp: "Turning it off blocks new chat, AI and game requests on the server. Settings remain available.",
+      chatEnabled: "Chat is on", chatDisabled: "Chat is off", disableChat: "Turn off chat", enableChat: "Turn chat back on",
+      chatStateChanging: "Changing…", chatStateOn: "Chat is on. New chat and game requests can continue.",
+      chatStateOff: "Chat is off. The frontend can no longer request chat, AI or games.",
       apiStyle: "API style", model: "Model", baseUrl: "Base URL", timeout: "Timeout (ms)", reasoning: "Reasoning effort",
       clearSecret: "Clear configured secret", gameApi: "Game API & account", gameHelp: "Leave Base URL empty to use the deterministic local mock.",
       gameProvider: "Provider adapter", listPath: "Game list path", initPath: "Init path", playPath: "Play path",
@@ -56,7 +72,15 @@
       maxTotal: "Max total bet", rate: "Executions/minute", ttl: "Confirmation TTL (seconds)", readyToSave: "Review values before saving.",
       saveNote: "Keys remain unchanged when their fields are blank.", saveApply: "Save & apply", connected: "Settings connected", unauthorized: "Waiting for settings authorization",
       configured: "configured", notConfigured: "not configured", loading: "Loading configuration…", saved: "Configuration saved and applied. Existing chat sessions were reset.",
-      saveFailed: "Save failed", invalidCatalog: "Game allowlist must be a valid JSON array."
+      saveFailed: "Save failed", invalidCatalog: "Game allowlist must be a valid JSON array.",
+      operations: "Browser activity and logs", operationsHelp: "Chat text, keys, IG values and URL parameter values are never recorded.", refresh: "Refresh",
+      knownBrowsers: "Recent browsers", activeBrowsers: "Active in 5 minutes", recentEvents: "Recent events",
+      browserList: "Browsers that opened Coco", browser: "Browser", maskedIp: "Masked IP", lastActive: "Last active",
+      visits: "Opens", lastPath: "Last page", eventLog: "Operation log", noBrowsers: "No browser visits yet.",
+      noEvents: "No operation events yet.", operationsFailed: "Operation logs are temporarily unavailable.",
+      outcomeOk: "Success", outcomeBlocked: "Blocked", outcomeFailed: "Failed",
+      pageOpen: "Page opened", chatBootstrap: "New conversation", chatRequest: "Chat request", gameExecute: "Game played",
+      settingsSaved: "Settings saved", chatStateChanged: "Chat switch changed", adminAuth: "Settings authorization failed", chatBlocked: "Request blocked by master switch"
     }
   }[zh ? "zh" : "en"];
 
@@ -66,6 +90,8 @@
   const saveButton = $("saveButton");
   const saveStatus = $("saveStatus");
   let token = sessionStorage.getItem("coco-admin-token") || "";
+  let chatEnabled = true;
+  let operationsTimer = 0;
   tokenInput.placeholder = zh ? "设置访问 Token" : "Settings access token";
 
   document.documentElement.lang = zh ? "zh-CN" : "en";
@@ -81,6 +107,8 @@
   });
   form.addEventListener("submit", saveConfig);
   $("gameProvider").addEventListener("change", applyProviderDefaults);
+  $("chatStateButton").addEventListener("click", toggleChatState);
+  $("operationsRefresh").addEventListener("click", loadOperations);
   loadConfig();
 
   async function loadConfig() {
@@ -91,7 +119,11 @@
       authPanel.hidden = true;
       form.hidden = false;
       setConnection("ready", text.connected);
+      await loadOperations();
+      if (!operationsTimer) operationsTimer = window.setInterval(loadOperations, 15_000);
     } catch (error) {
+      if (operationsTimer) window.clearInterval(operationsTimer);
+      operationsTimer = 0;
       form.hidden = true;
       authPanel.hidden = false;
       setConnection("error", error.status === 401 ? text.unauthorized : error.message);
@@ -101,6 +133,7 @@
 
   function fill(config) {
     $("demoMode").checked = config.demoMode;
+    renderChatState(config.chatEnabled);
     $("aiApiStyle").value = config.ai.apiStyle;
     $("aiBaseUrl").value = config.ai.baseUrl;
     $("aiModel").value = config.ai.model;
@@ -147,6 +180,181 @@
     $("ratePerMinute").value = config.limits.ratePerMinute;
     $("actionTtl").value = config.limits.actionTtlSeconds;
     clearSecretInputs();
+  }
+
+  async function toggleChatState() {
+    const button = $("chatStateButton");
+    button.disabled = true;
+    button.textContent = text.chatStateChanging;
+    try {
+      const result = await request("/api/admin/chat-state", {
+        method: "POST",
+        body: JSON.stringify({ enabled: !chatEnabled })
+      });
+      renderChatState(result.chatEnabled);
+      saveStatus.textContent = result.chatEnabled ? text.chatStateOn : text.chatStateOff;
+      await loadOperations();
+    } catch (error) {
+      saveStatus.textContent = `${text.saveFailed}: ${error.message}`;
+    } finally {
+      button.disabled = false;
+      renderChatState(chatEnabled);
+    }
+  }
+
+  function renderChatState(enabled) {
+    chatEnabled = enabled !== false;
+    const badge = $("chatStateBadge");
+    const button = $("chatStateButton");
+    badge.textContent = chatEnabled ? text.chatEnabled : text.chatDisabled;
+    badge.classList.toggle("off", !chatEnabled);
+    button.textContent = chatEnabled ? text.disableChat : text.enableChat;
+    button.classList.toggle("danger", chatEnabled);
+    button.classList.toggle("success", !chatEnabled);
+  }
+
+  async function loadOperations() {
+    try {
+      const payload = await request("/api/admin/operations");
+      const operations = payload.operations;
+      renderChatState(operations.chatEnabled);
+      $("browserTotal").textContent = String(operations.browsers.length);
+      $("browserActive").textContent = String(operations.browsers.filter((browser) => browser.active).length);
+      $("eventTotal").textContent = String(operations.events.length);
+      renderBrowsers(operations.browsers);
+      renderEvents(operations.events);
+    } catch (error) {
+      renderOperationsError();
+      if (error.status === 401) {
+        if (operationsTimer) window.clearInterval(operationsTimer);
+        operationsTimer = 0;
+        form.hidden = true;
+        authPanel.hidden = false;
+        setConnection("error", text.unauthorized);
+      }
+    }
+  }
+
+  function renderBrowsers(browsers) {
+    const body = $("browserRows");
+    body.replaceChildren();
+    if (!browsers.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 5;
+      cell.className = "operations-empty";
+      cell.textContent = text.noBrowsers;
+      row.append(cell);
+      body.append(row);
+      return;
+    }
+    for (const browser of browsers) {
+      const row = document.createElement("tr");
+      const identity = document.createElement("td");
+      const name = document.createElement("span");
+      const dot = document.createElement("i");
+      const meta = document.createElement("small");
+      name.className = "browser-name";
+      dot.className = `active-dot${browser.active ? "" : " off"}`;
+      name.append(dot, document.createTextNode(browser.browser));
+      meta.textContent = `${browser.platform} · ${browser.id}`;
+      identity.append(name, meta);
+      row.append(
+        identity,
+        tableCell(browser.ip),
+        tableCell(formatTime(browser.lastSeen)),
+        tableCell(String(browser.visits)),
+        tableCell(browser.lastPath)
+      );
+      body.append(row);
+    }
+  }
+
+  function renderEvents(events) {
+    const container = $("operationEvents");
+    container.replaceChildren();
+    if (!events.length) {
+      const empty = document.createElement("div");
+      empty.className = "operations-empty";
+      empty.textContent = text.noEvents;
+      container.append(empty);
+      return;
+    }
+    for (const event of events) {
+      const item = document.createElement("div");
+      const time = document.createElement("time");
+      const description = document.createElement("div");
+      const label = document.createElement("b");
+      const details = document.createElement("small");
+      const outcome = document.createElement("b");
+      item.className = "operation-event";
+      time.dateTime = event.at;
+      time.textContent = formatTime(event.at);
+      label.textContent = eventLabel(event.type);
+      details.textContent = eventDetails(event);
+      description.append(label, details);
+      outcome.dataset.outcome = event.outcome;
+      outcome.textContent = outcomeLabel(event.outcome);
+      item.append(time, description, outcome);
+      container.append(item);
+    }
+  }
+
+  function renderOperationsError() {
+    $("browserRows").replaceChildren();
+    $("operationEvents").replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "operations-empty";
+    cell.textContent = text.operationsFailed;
+    row.append(cell);
+    $("browserRows").append(row);
+    const eventError = document.createElement("div");
+    eventError.className = "operations-empty";
+    eventError.textContent = text.operationsFailed;
+    $("operationEvents").append(eventError);
+  }
+
+  function tableCell(value) {
+    const cell = document.createElement("td");
+    cell.textContent = value;
+    return cell;
+  }
+
+  function formatTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
+      month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"
+    }).format(date);
+  }
+
+  function eventLabel(type) {
+    return {
+      page_open: text.pageOpen,
+      chat_bootstrap: text.chatBootstrap,
+      chat_request: text.chatRequest,
+      game_execute: text.gameExecute,
+      settings_saved: text.settingsSaved,
+      chat_state_changed: text.chatStateChanged,
+      admin_auth: text.adminAuth,
+      chat_blocked: text.chatBlocked
+    }[type] || type;
+  }
+
+  function outcomeLabel(outcome) {
+    return {
+      ok: text.outcomeOk,
+      blocked: text.outcomeBlocked,
+      failed: text.outcomeFailed
+    }[outcome] || outcome;
+  }
+
+  function eventDetails(event) {
+    const details = Object.entries(event.details || {}).map(([key, value]) => `${key}: ${value}`);
+    if (event.browserId) details.unshift(`#${event.browserId}`);
+    return details.join(" · ");
   }
 
   async function saveConfig(event) {

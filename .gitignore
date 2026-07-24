@@ -14,4 +14,5 @@ ai-game-server/node_modules/
 ai-game-server/dist/
 ai-game-server/.env
 ai-game-server/.runtime/
+ai-game-server/.data/
 ai-game-server/.local-run/

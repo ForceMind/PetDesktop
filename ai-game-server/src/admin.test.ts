@@ -149,4 +149,115 @@ describe("Admin control plane", () => {
       await new Promise<void>((resolve, reject) => tokenServer.close((error) => error ? reject(error) : resolve()));
     }
   });
+
+  it("tracks privacy-safe browser activity and hard-blocks chat, AI and games with one switch", async () => {
+    const switchEnvFile = path.join(tempDir, "chat-switch.env");
+    const switchConfig = {
+      ...config,
+      host: "127.0.0.1",
+      chatEnabled: true,
+      admin: { token: "switch-test-token" },
+      ai: { ...config.ai, apiKey: "" },
+      game: { ...config.game, provider: "mock", baseUrl: "" }
+    } as AppConfig;
+    const switchServer = createApp(switchConfig, {
+      envFile: switchEnvFile,
+      operationsFile: false
+    }).listen(0, "127.0.0.1");
+    await new Promise<void>((resolve) => switchServer.once("listening", resolve));
+    const switchBase = `http://127.0.0.1:${(switchServer.address() as AddressInfo).port}`;
+    const authHeaders = { authorization: "Bearer switch-test-token" };
+    const privateUserId = "private-user-id-must-not-be-logged";
+    const privateMessage = "private-chat-text-must-not-be-logged";
+
+    try {
+      const pageResponse = await fetch(`${switchBase}/settings?userId=${privateUserId}`, {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/150.0.0.0 Safari/537.36",
+          "x-real-ip": "203.0.113.42"
+        }
+      });
+      expect(pageResponse.ok).toBe(true);
+      const cookie = pageResponse.headers.get("set-cookie")?.split(";")[0];
+      expect(cookie).toMatch(/^coco_browser_id=/);
+
+      const browserHeaders = { ...authHeaders, cookie: cookie! };
+      const bootstrapResponse = await fetch(`${switchBase}/api/slot/bootstrap`, {
+        method: "POST",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({
+          language: "en",
+          launchParams: { userId: privateUserId }
+        })
+      });
+      expect(bootstrapResponse.ok).toBe(true);
+      const bootstrap = await bootstrapResponse.json();
+      const chatResponse = await fetch(`${switchBase}/api/slot/chat`, {
+        method: "POST",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionId: bootstrap.sessionId,
+          message: privateMessage,
+          language: "en"
+        })
+      });
+      expect(chatResponse.ok).toBe(true);
+
+      const initialOperations = await fetch(`${switchBase}/api/admin/operations`, {
+        headers: browserHeaders
+      }).then((response) => response.json());
+      const initialText = JSON.stringify(initialOperations);
+      expect(initialText).not.toContain(privateUserId);
+      expect(initialText).not.toContain(privateMessage);
+      expect(initialOperations.operations.browsers).toHaveLength(1);
+      expect(initialOperations.operations.browsers[0]).toMatchObject({
+        browser: "Chrome 150",
+        platform: "Windows",
+        ip: "203.0.113.*",
+        lastPath: "/api/admin/operations"
+      });
+
+      const disableResponse = await fetch(`${switchBase}/api/admin/chat-state`, {
+        method: "POST",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({ enabled: false })
+      });
+      expect(disableResponse.ok).toBe(true);
+      expect((await disableResponse.json()).chatEnabled).toBe(false);
+      expect(await fs.readFile(switchEnvFile, "utf8")).toContain("CHAT_ENABLED=false");
+
+      const health = await fetch(`${switchBase}/api/slot/health`).then((response) => response.json());
+      expect(health.chatEnabled).toBe(false);
+      const blockedResponse = await fetch(`${switchBase}/api/slot/bootstrap`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ language: "en", launchParams: {} })
+      });
+      expect(blockedResponse.status).toBe(503);
+      expect((await blockedResponse.json()).error.code).toBe("CHAT_DISABLED");
+
+      const enableResponse = await fetch(`${switchBase}/api/admin/chat-state`, {
+        method: "POST",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({ enabled: true })
+      });
+      expect(enableResponse.ok).toBe(true);
+      expect((await enableResponse.json()).chatEnabled).toBe(true);
+      expect((await fetch(`${switchBase}/api/slot/bootstrap`)).ok).toBe(true);
+
+      const finalOperations = await fetch(`${switchBase}/api/admin/operations`, {
+        headers: browserHeaders
+      }).then((response) => response.json());
+      expect(finalOperations.operations.events.some(
+        (event: { type: string; outcome: string }) => event.type === "chat_blocked" && event.outcome === "blocked"
+      )).toBe(true);
+      expect(finalOperations.operations.events.filter(
+        (event: { type: string }) => event.type === "chat_state_changed"
+      )).toHaveLength(2);
+    } finally {
+      await new Promise<void>((resolve, reject) => switchServer.close((error) => error ? reject(error) : resolve()));
+    }
+  });
 });

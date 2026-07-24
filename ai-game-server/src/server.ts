@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import express from "express";
@@ -7,6 +7,7 @@ import { adminConfigView, adminUpdateSchema, applyAdminUpdate, writeEnvUpdates }
 import { SlotAgent } from "./agent";
 import { config, type AppConfig } from "./config";
 import { publicError } from "./errors";
+import { OperationsMonitor } from "./operations";
 
 const chatSchema = z.object({
   sessionId: z.string().uuid(),
@@ -24,7 +25,12 @@ const bootstrapSchema = z.object({
   launchParams: z.record(z.string().max(64), z.string().max(512)).default({})
 });
 
-export function createApp(appConfig: AppConfig = config, options: { envFile?: string } = {}) {
+const chatStateSchema = z.object({ enabled: z.boolean() }).strict();
+
+export function createApp(
+  appConfig: AppConfig = config,
+  options: { envFile?: string; operationsFile?: string | false } = {}
+) {
   const app = express();
   let activeConfig = appConfig;
   let agent = new SlotAgent(activeConfig);
@@ -32,6 +38,12 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
   const repoRoot = path.resolve(currentDir, "../..");
   const webRoot = path.join(repoRoot, "web");
   const envFile = options.envFile ?? path.join(repoRoot, "ai-game-server", ".env");
+  const operationsFile = options.operationsFile === false
+    ? undefined
+    : options.operationsFile ?? (process.env.NODE_ENV === "test"
+      ? undefined
+      : path.join(repoRoot, "ai-game-server", ".data", "operations.jsonl"));
+  const operations = new OperationsMonitor(operationsFile);
 
   app.disable("x-powered-by");
   app.use((request, response, next) => {
@@ -47,25 +59,65 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
     next();
   });
   app.use(express.json({ limit: "256kb" }));
+  app.use((request, response, next) => {
+    const browserId = ensureBrowserId(request, response);
+    response.locals.browserId = browserId;
+    if (isDocumentVisit(request)) {
+      operations.observeBrowser({
+        id: browserId,
+        userAgent: request.get("user-agent"),
+        remoteAddress: clientAddress(request),
+        path: request.path
+      });
+    } else {
+      operations.touchBrowser(browserId, request.path);
+    }
+    next();
+  });
 
   app.get("/api/slot/health", (_request, response) => {
     response.json({
       ok: true,
       service: "coco-ai-game",
       demoMode: activeConfig.demoMode,
+      chatEnabled: activeConfig.chatEnabled,
       aiMode: activeConfig.ai.apiKey ? "live" : "mock",
       gameMode: activeConfig.game.provider === "mock" ? "mock" : "live",
       gameProvider: activeConfig.game.provider
     });
   });
 
+  app.use("/api/slot", (request, response, next) => {
+    if (activeConfig.chatEnabled) {
+      next();
+      return;
+    }
+    operations.record("chat_blocked", "blocked", {
+      browserId: response.locals.browserId,
+      details: { path: request.path }
+    });
+    response.status(503).json({
+      error: {
+        message: "Coco chat is currently turned off.",
+        code: "CHAT_DISABLED",
+        status: 503
+      }
+    });
+  });
+
   app.get("/api/slot/bootstrap", async (request, response, next) => {
     try {
-      response.json(await agent.bootstrap({
+      const result = await agent.bootstrap({
         language: request.get("accept-language")?.toLowerCase().includes("zh") ? "zh" : "en",
         launchParams: filterLaunchParams(request.query, activeConfig.game.launchParamKeys)
-      }));
+      });
+      operations.record("chat_bootstrap", "ok", { browserId: response.locals.browserId });
+      response.json(result);
     } catch (error) {
+      operations.record("chat_bootstrap", "failed", {
+        browserId: response.locals.browserId,
+        details: { code: publicError(error).code }
+      });
       next(error);
     }
   });
@@ -73,11 +125,17 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
   app.post("/api/slot/bootstrap", async (request, response, next) => {
     try {
       const input = bootstrapSchema.parse(request.body);
-      response.json(await agent.bootstrap({
+      const result = await agent.bootstrap({
         language: input.language,
         launchParams: filterLaunchParams(input.launchParams, activeConfig.game.launchParamKeys)
-      }));
+      });
+      operations.record("chat_bootstrap", "ok", { browserId: response.locals.browserId });
+      response.json(result);
     } catch (error) {
+      operations.record("chat_bootstrap", "failed", {
+        browserId: response.locals.browserId,
+        details: { code: publicError(error).code }
+      });
       next(error);
     }
   });
@@ -85,8 +143,17 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
   app.post("/api/slot/chat", async (request, response, next) => {
     try {
       const input = chatSchema.parse(request.body);
-      response.json(await agent.chat(input.sessionId, input.message, input.language));
+      const reply = await agent.chat(input.sessionId, input.message, input.language);
+      operations.record("chat_request", "ok", {
+        browserId: response.locals.browserId,
+        details: { session: input.sessionId.slice(0, 8) }
+      });
+      response.json(reply);
     } catch (error) {
+      operations.record("chat_request", "failed", {
+        browserId: response.locals.browserId,
+        details: { code: publicError(error).code }
+      });
       next(error);
     }
   });
@@ -100,13 +167,25 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
     const write = (value: unknown) => response.write(`${JSON.stringify(value)}\n`);
     try {
       const input = executeSchema.parse(request.body);
-        const reply = await agent.execute(request.params.actionId, input.sessionId, (step) => {
-          write({ type: "step", step });
-        }, input.language, (progress) => {
-          write({ type: "progress", progress });
-        });
+      const reply = await agent.execute(request.params.actionId, input.sessionId, (step) => {
+        write({ type: "step", step });
+      }, input.language, (progress) => {
+        write({ type: "progress", progress });
+      });
+      operations.record("game_execute", "ok", {
+        browserId: response.locals.browserId,
+        details: {
+          game: reply.result?.gameName ?? "unknown",
+          rounds: reply.result?.spins.length ?? 0,
+          net: reply.result?.net ?? 0
+        }
+      });
       write({ type: "final", reply });
     } catch (error) {
+      operations.record("game_execute", "failed", {
+        browserId: response.locals.browserId,
+        details: { code: publicError(error).code }
+      });
       write({ type: "error", error: publicError(error) });
     } finally {
       response.end();
@@ -126,10 +205,42 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
         status: 401
       }
     });
+    operations.record("admin_auth", "blocked", {
+      browserId: response.locals.browserId,
+      details: { path: request.path }
+    });
   });
 
   app.get("/api/admin/config", (_request, response) => {
     response.json({ config: adminConfigView(activeConfig) });
+  });
+
+  app.get("/api/admin/operations", (_request, response) => {
+    response.json({ operations: operations.snapshot(activeConfig.chatEnabled) });
+  });
+
+  app.post("/api/admin/chat-state", async (request, response, next) => {
+    try {
+      const input = chatStateSchema.parse(request.body);
+      await writeEnvUpdates(envFile, { CHAT_ENABLED: String(input.enabled) });
+      activeConfig = { ...activeConfig, chatEnabled: input.enabled } as AppConfig;
+      agent = new SlotAgent(activeConfig);
+      operations.record("chat_state_changed", "ok", {
+        browserId: response.locals.browserId,
+        details: { enabled: input.enabled }
+      });
+      response.json({
+        ok: true,
+        chatEnabled: activeConfig.chatEnabled,
+        sessionsReset: true
+      });
+    } catch (error) {
+      operations.record("chat_state_changed", "failed", {
+        browserId: response.locals.browserId,
+        details: { code: publicError(error).code }
+      });
+      next(error);
+    }
   });
 
   app.put("/api/admin/config", async (request, response, next) => {
@@ -139,6 +250,7 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
       await writeEnvUpdates(envFile, update.envUpdates);
       activeConfig = update.config;
       agent = new SlotAgent(activeConfig);
+      operations.record("settings_saved", "ok", { browserId: response.locals.browserId });
       response.json({
         ok: true,
         applied: true,
@@ -146,6 +258,10 @@ export function createApp(appConfig: AppConfig = config, options: { envFile?: st
         config: adminConfigView(activeConfig)
       });
     } catch (error) {
+      operations.record("settings_saved", "failed", {
+        browserId: response.locals.browserId,
+        details: { code: publicError(error).code }
+      });
       next(error);
     }
   });
@@ -199,6 +315,34 @@ function filterLaunchParams(source: Record<string, unknown>, allowedKeys: readon
     if (allowed.has(key) && typeof value === "string" && value.length <= 512) result[key] = value;
   }
   return result;
+}
+
+function isDocumentVisit(request: express.Request) {
+  return request.method === "GET"
+    && !request.path.startsWith("/api/")
+    && (request.get("sec-fetch-dest") === "document" || request.accepts("html") === "html");
+}
+
+function clientAddress(request: express.Request) {
+  const forwarded = request.get("x-real-ip") || request.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || request.socket.remoteAddress;
+}
+
+function ensureBrowserId(request: express.Request, response: express.Response) {
+  const cookies = request.get("cookie") ?? "";
+  const existing = cookies
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("coco_browser_id="))
+    ?.slice("coco_browser_id=".length);
+  if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
+  const generated = randomUUID();
+  const secure = request.secure || request.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
+  response.append(
+    "set-cookie",
+    `coco_browser_id=${generated}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`
+  );
+  return generated;
 }
 
 function isAdminAuthorized(request: express.Request, appConfig: AppConfig) {

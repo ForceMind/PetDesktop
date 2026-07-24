@@ -5,7 +5,8 @@
 AI 游戏 Demo 直接复用本仓库 `web/` 和 Coco 完整角色帧资源。双击根目录
 `run-ai-game-demo.cmd` 即可运行本地 Mock 全流程；DeepSeek/OpenAI 兼容模型、游戏账号、
 游戏列表和 play 接口配置见 [`ai-game-server/README.md`](ai-game-server/README.md)。
-服务启动后可在 `http://localhost:8787/settings` 使用可视化设置页。
+服务启动后可在 `http://localhost:8787/settings` 使用可视化设置页；其中可查看脱敏的浏览器活动与
+运行日志，也可一键在服务器端关闭新的聊天、AI 和游戏请求。
 Linux 服务器切换到 `codex/ai-game-pet-demo` 分支后可运行 `sudo ./deploy-linux.sh`
 一键安装或更新；脚本默认避开已占用端口，且不修改服务器现有 Nginx，结束时会打印
 `http://服务器IP:端口/`。系统 Node.js 过旧时使用项目私有 Node.js 22，不替换服务器

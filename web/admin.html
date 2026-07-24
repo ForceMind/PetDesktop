@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Coco Settings</title>
   <link rel="icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./admin.css">
+  <link rel="stylesheet" href="./admin.css?v=24">
 </head>
 <body>
   <header class="admin-topbar">
@@ -59,6 +59,14 @@
           <span><strong data-i18n="demoMode">Demo safety mode</strong><small data-i18n="demoModeHelp">Play is blocked when this switch is off.</small></span>
           <input id="demoMode" type="checkbox"><i></i>
         </label>
+        <div class="chat-kill-switch">
+          <div>
+            <span id="chatStateBadge" class="state-badge"></span>
+            <strong data-i18n="chatControl">Chat and game master switch</strong>
+            <small data-i18n="chatControlHelp">Turning it off blocks new chat, AI and game execution on the server. Settings remain available.</small>
+          </div>
+          <button id="chatStateButton" class="button danger" type="button"></button>
+        </div>
       </section>
 
       <section class="config-section">
@@ -161,12 +169,42 @@
         </div>
       </section>
 
+      <section class="config-section">
+        <div class="section-heading">
+          <div><span>07</span><h2 data-i18n="operations">Browser activity and logs</h2></div>
+          <div class="section-tools">
+            <p data-i18n="operationsHelp">No chat text, keys, IG values or URL parameter values are recorded.</p>
+            <button id="operationsRefresh" class="button secondary compact-button" type="button" data-i18n="refresh">Refresh</button>
+          </div>
+        </div>
+        <div class="operations-summary">
+          <div><strong id="browserTotal">0</strong><span data-i18n="knownBrowsers">Recent browsers</span></div>
+          <div><strong id="browserActive">0</strong><span data-i18n="activeBrowsers">Active in 5 minutes</span></div>
+          <div><strong id="eventTotal">0</strong><span data-i18n="recentEvents">Recent events</span></div>
+        </div>
+        <h3 data-i18n="browserList">Browsers that opened Coco</h3>
+        <div class="operations-table-wrap">
+          <table class="operations-table">
+            <thead><tr>
+              <th data-i18n="browser">Browser</th>
+              <th data-i18n="maskedIp">Masked IP</th>
+              <th data-i18n="lastActive">Last active</th>
+              <th data-i18n="visits">Visits</th>
+              <th data-i18n="lastPath">Last page</th>
+            </tr></thead>
+            <tbody id="browserRows"></tbody>
+          </table>
+        </div>
+        <h3 data-i18n="eventLog">Operation log</h3>
+        <div id="operationEvents" class="operation-events"></div>
+      </section>
+
       <div class="save-bar">
         <div><strong id="saveStatus" data-i18n="readyToSave">Review values before saving.</strong><small data-i18n="saveNote">Keys remain unchanged when their fields are blank.</small></div>
         <button id="saveButton" class="button primary" type="submit" data-i18n="saveApply">Save & apply</button>
       </div>
     </form>
   </main>
-  <script src="./admin.js" defer></script>
+  <script src="./admin.js?v=24" defer></script>
 </body>
 </html>

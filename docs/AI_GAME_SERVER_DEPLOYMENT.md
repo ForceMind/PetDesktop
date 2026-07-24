@@ -111,6 +111,7 @@ sudo -u "$(stat -c '%U' .)" nano ai-game-server/.env
 HOST=0.0.0.0
 PORT=8787
 DEMO_MODE=true
+CHAT_ENABLED=true
 
 AI_API_KEY=
 AI_BASE_URL=https://api.deepseek.com
@@ -205,6 +206,16 @@ sudo ./deploy-linux.sh --skip-tests
 
 ## 查看状态和日志
 
+打开 `http://服务器IP:实际端口/settings` 并输入 `.env` 中的 `ADMIN_TOKEN`，可直接查看：
+
+- 最近打开过 Coco 的匿名浏览器、平台、脱敏 IP、打开次数和最后活动时间；
+- 新对话、聊天、游戏、设置变更与拦截结果；
+- 当前聊天总开关，并可一键关闭或重新开启新的聊天、AI 和游戏请求。
+
+页面不会显示聊天原文、地址栏参数值、Key、Token 或 IG。脱敏运行日志写入
+`ai-game-server/.data/operations.jsonl`，该目录已被 Git 忽略。关闭聊天后设置页和健康检查
+仍可使用；状态会写回 `.env`，服务器重启后不会自动恢复。
+
 systemd：
 
 ```bash
@@ -283,4 +294,6 @@ sudo ./deploy-linux.sh
 - 默认 IP 直连模式只开放脚本选中的 Coco 端口；云安全组也只需允许这个端口。
 - 可选 Nginx 模式会把 Node 改为只监听 `127.0.0.1`，由 Nginx 对外提供访问。
 - Settings API 不会返回已保存的密钥原值；浏览器中的管理 Token 只保存在当前标签页。
+- 浏览器活动只使用匿名短标识和脱敏 IP；运行日志不得增加聊天原文或地址栏参数值。
+- 聊天总开关必须由 Settings Token 授权，并在 Agent、AI 和游戏适配器之前硬拦截新请求。
 - 游戏执行仍必须经过确认卡、下注档位、总额、频率、白名单、余额和结果数字校验。
