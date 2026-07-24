@@ -14,6 +14,8 @@ let envFile: string;
 
 const protectedConfig = {
   ...config,
+  host: "127.0.0.1",
+  admin: { token: "" },
   ai: { ...config.ai, apiKey: "ai-private-value" },
   game: {
     ...config.game,
