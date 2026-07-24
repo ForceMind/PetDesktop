@@ -84,6 +84,7 @@ sudo ./deploy-linux.sh
 - 不安装、不修改、不重启 Nginx；
 - 不占用 80 或 443；
 - 不停止占用 8787 的其他进程，而是自动寻找下一个空闲端口；
+- 只安装实际缺少的 curl、Git、tar、xz、OpenSSL/CA 证书，不升级已经存在的基础工具；
 - 不替换服务器已有的 Node.js/npm；需要时使用仓库内被 Git 忽略的私有 Node.js 22；
 - 只创建或更新 `coco-ai-game` 服务和仓库内的 `ai-game-server` 文件；
 - 只添加实际选中端口的防火墙放行规则，不改动其他端口规则。

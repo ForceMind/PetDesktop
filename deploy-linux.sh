@@ -174,12 +174,22 @@ install_packages() {
 }
 
 install_base_tools() {
-  log "Installing required system packages with ${PKG_MANAGER}."
-  case "${PKG_MANAGER}" in
-    apt-get) install_packages ca-certificates curl git tar xz-utils openssl ;;
-    dnf|yum|zypper|pacman) install_packages ca-certificates curl git tar xz openssl ;;
-    apk) install_packages ca-certificates curl git tar xz openssl ;;
-  esac
+  local packages=() xz_package="xz"
+  [[ "${PKG_MANAGER}" == "apt-get" ]] && xz_package="xz-utils"
+  command -v curl >/dev/null 2>&1 || packages+=(curl)
+  command -v git >/dev/null 2>&1 || packages+=(git)
+  command -v tar >/dev/null 2>&1 || packages+=(tar)
+  command -v xz >/dev/null 2>&1 || packages+=("${xz_package}")
+  command -v openssl >/dev/null 2>&1 || packages+=(openssl)
+  if [[ ! -e /etc/ssl/certs/ca-certificates.crt && ! -e /etc/pki/tls/certs/ca-bundle.crt ]]; then
+    packages+=(ca-certificates)
+  fi
+  if ((${#packages[@]} == 0)); then
+    log "Required system tools are already available; no system package will be installed or upgraded."
+    return
+  fi
+  log "Installing only missing system packages with ${PKG_MANAGER}: ${packages[*]}."
+  install_packages "${packages[@]}"
 }
 
 node_major() {
