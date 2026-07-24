@@ -165,6 +165,7 @@ export function adminConfigView(config: AppConfig) {
   return {
     demoMode: config.demoMode,
     chatEnabled: config.chatEnabled,
+    chatHistory: { ...config.chatHistory },
     ai: {
       apiStyle: config.ai.apiStyle,
       baseUrl: config.ai.baseUrl,

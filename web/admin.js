@@ -34,14 +34,31 @@
       saveNote: "密钥输入框留空时保持原值。", saveApply: "保存并应用", connected: "设置服务已连接", unauthorized: "等待设置授权",
       configured: "已配置", notConfigured: "未配置", loading: "正在读取配置…", saved: "配置已保存并立即生效；已有聊天会话已重置。",
       saveFailed: "保存失败", invalidCatalog: "游戏白名单必须是有效的 JSON 数组。",
-      operations: "浏览器活动与日志", operationsHelp: "不记录聊天原文、密钥、IG 值或地址栏参数值。", refresh: "刷新",
+      configurationTab: "配置", testDataTab: "测试数据",
+      operations: "浏览器活动与日志", operationsHelp: "运行日志不记录聊天正文；对话内容只保存在受保护的“测试数据”页签。", refresh: "刷新",
       knownBrowsers: "最近打开过的浏览器", activeBrowsers: "5 分钟内活跃", recentEvents: "最近事件",
       browserList: "打开过 Coco 的浏览器", browser: "浏览器", maskedIp: "脱敏 IP", lastActive: "最后活动",
       visits: "打开次数", lastPath: "最后页面", eventLog: "运行日志", noBrowsers: "还没有浏览器访问记录。",
       noEvents: "还没有运行日志。", operationsFailed: "暂时无法读取运行日志。",
       outcomeOk: "成功", outcomeBlocked: "已阻止", outcomeFailed: "失败",
       pageOpen: "打开页面", chatBootstrap: "开始新对话", chatRequest: "聊天请求", gameExecute: "进行游戏",
-      settingsSaved: "保存设置", chatStateChanged: "切换聊天开关", adminAuth: "设置授权失败", chatBlocked: "请求被总开关阻止"
+      settingsSaved: "保存设置", chatStateChanged: "切换聊天开关", adminAuth: "设置授权失败", chatBlocked: "请求被总开关阻止",
+      conversationSettings: "修改对话记录设置", conversationDeleted: "删除测试数据",
+      archiveTitle: "对话测试数据", archiveHelp: "按匿名浏览器分组；不会保存 Key、IG、地址栏参数或内部提示词。",
+      recordConversations: "记录测试对话", recordConversationsHelp: "关闭后不再保存新消息；已有记录会保留到过期或手动删除。",
+      retentionDays: "保存天数", saveArchiveSettings: "保存记录设置", clearAllTestData: "清空全部测试数据",
+      testUsers: "测试用户", testConversations: "对话", testMessages: "消息", archiveStorage: "私有存储",
+      testUserList: "测试用户", conversationList: "对话列表", conversationDetail: "对话详情",
+      storageHealthy: "正常", storageFailed: "异常", archiveSaved: "记录设置已保存。",
+      archiveLoadFailed: "暂时无法读取测试数据。", noTestUsers: "服务器更新后产生的新对话会显示在这里。",
+      noConversations: "这个浏览器还没有对话。", selectConversation: "选择一条对话查看完整内容。",
+      deleteUserData: "删除该用户数据", deleteConversationData: "删除", messagesCount: "条消息",
+      conversationsCount: "次对话", archiveDeleted: "测试数据已删除。", recordingOn: "正在记录", recordingOff: "已停止记录",
+      clearAllConfirm: "确定清空全部测试对话吗？此操作无法恢复。", deleteUserConfirm: "确定删除这个浏览器的全部测试对话吗？",
+      deleteConversationConfirm: "确定删除这次对话吗？", roleUser: "用户", roleCoco: "Coco", roleSystem: "系统",
+      metaGame: "游戏", metaGames: "游戏", metaRounds: "局数", metaBetLevel: "下注档位", metaWager: "每局实际下注",
+      metaTotalBet: "总下注", metaTotalWin: "总赢得", metaNet: "净结果", metaBalance: "余额", metaCurrency: "币种",
+      round: "局", bet: "下注", win: "赢得"
     },
     en: {
       controlPlane: "Safety policies & configuration", connecting: "Connecting", backToCoco: "Back to Coco", title: "Settings",
@@ -73,14 +90,31 @@
       saveNote: "Keys remain unchanged when their fields are blank.", saveApply: "Save & apply", connected: "Settings connected", unauthorized: "Waiting for settings authorization",
       configured: "configured", notConfigured: "not configured", loading: "Loading configuration…", saved: "Configuration saved and applied. Existing chat sessions were reset.",
       saveFailed: "Save failed", invalidCatalog: "Game allowlist must be a valid JSON array.",
-      operations: "Browser activity and logs", operationsHelp: "Chat text, keys, IG values and URL parameter values are never recorded.", refresh: "Refresh",
+      configurationTab: "Configuration", testDataTab: "Test data",
+      operations: "Browser activity and logs", operationsHelp: "Operation logs contain no chat text. Conversation content is isolated in the protected Test data tab.", refresh: "Refresh",
       knownBrowsers: "Recent browsers", activeBrowsers: "Active in 5 minutes", recentEvents: "Recent events",
       browserList: "Browsers that opened Coco", browser: "Browser", maskedIp: "Masked IP", lastActive: "Last active",
       visits: "Opens", lastPath: "Last page", eventLog: "Operation log", noBrowsers: "No browser visits yet.",
       noEvents: "No operation events yet.", operationsFailed: "Operation logs are temporarily unavailable.",
       outcomeOk: "Success", outcomeBlocked: "Blocked", outcomeFailed: "Failed",
       pageOpen: "Page opened", chatBootstrap: "New conversation", chatRequest: "Chat request", gameExecute: "Game played",
-      settingsSaved: "Settings saved", chatStateChanged: "Chat switch changed", adminAuth: "Settings authorization failed", chatBlocked: "Request blocked by master switch"
+      settingsSaved: "Settings saved", chatStateChanged: "Chat switch changed", adminAuth: "Settings authorization failed", chatBlocked: "Request blocked by master switch",
+      conversationSettings: "Conversation recording changed", conversationDeleted: "Test data deleted",
+      archiveTitle: "Conversation test data", archiveHelp: "Grouped by anonymous browser. Keys, IG values, URL parameters and internal prompts are never stored.",
+      recordConversations: "Record test conversations", recordConversationsHelp: "When disabled, new messages stop being stored. Existing records remain until they expire or are deleted.",
+      retentionDays: "Keep for days", saveArchiveSettings: "Save recording settings", clearAllTestData: "Clear all test data",
+      testUsers: "Test users", testConversations: "Conversations", testMessages: "Messages", archiveStorage: "Private storage",
+      testUserList: "Test users", conversationList: "Conversations", conversationDetail: "Conversation details",
+      storageHealthy: "Healthy", storageFailed: "Error", archiveSaved: "Recording settings saved.",
+      archiveLoadFailed: "Test data is temporarily unavailable.", noTestUsers: "New conversations created after the server update will appear here.",
+      noConversations: "This browser has no conversations.", selectConversation: "Select a conversation to view the full content.",
+      deleteUserData: "Delete user data", deleteConversationData: "Delete", messagesCount: "messages",
+      conversationsCount: "conversations", archiveDeleted: "Test data deleted.", recordingOn: "Recording", recordingOff: "Not recording",
+      clearAllConfirm: "Clear every test conversation? This cannot be undone.", deleteUserConfirm: "Delete every test conversation for this browser?",
+      deleteConversationConfirm: "Delete this conversation?", roleUser: "User", roleCoco: "Coco", roleSystem: "System",
+      metaGame: "Game", metaGames: "Games", metaRounds: "Rounds", metaBetLevel: "Bet level", metaWager: "Actual/round",
+      metaTotalBet: "Total bet", metaTotalWin: "Total win", metaNet: "Net", metaBalance: "Balance", metaCurrency: "Currency",
+      round: "Round", bet: "Bet", win: "Win"
     }
   }[zh ? "zh" : "en"];
 
@@ -92,6 +126,10 @@
   let token = sessionStorage.getItem("coco-admin-token") || "";
   let chatEnabled = true;
   let operationsTimer = 0;
+  let currentAdminTab = window.location.hash === "#test-data" ? "test-data" : "config";
+  let archiveOverview;
+  let selectedBrowserId = "";
+  let selectedConversationId = "";
   tokenInput.placeholder = zh ? "设置访问 Token" : "Settings access token";
 
   document.documentElement.lang = zh ? "zh-CN" : "en";
@@ -109,6 +147,15 @@
   $("gameProvider").addEventListener("change", applyProviderDefaults);
   $("chatStateButton").addEventListener("click", toggleChatState);
   $("operationsRefresh").addEventListener("click", loadOperations);
+  document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+    button.addEventListener("click", () => switchAdminTab(button.dataset.adminTab));
+  });
+  window.addEventListener("hashchange", () => {
+    switchAdminTab(window.location.hash === "#test-data" ? "test-data" : "config", false);
+  });
+  $("archiveRefresh").addEventListener("click", loadConversationArchive);
+  $("historySettingsSave").addEventListener("click", saveConversationSettings);
+  $("archiveClearAll").addEventListener("click", clearAllConversations);
   loadConfig();
 
   async function loadConfig() {
@@ -117,14 +164,22 @@
       const payload = await request("/api/admin/config");
       fill(payload.config);
       authPanel.hidden = true;
-      form.hidden = false;
+      $("settingsTabs").hidden = false;
+      switchAdminTab(currentAdminTab);
       setConnection("ready", text.connected);
       await loadOperations();
-      if (!operationsTimer) operationsTimer = window.setInterval(loadOperations, 15_000);
+      if (!operationsTimer) {
+        operationsTimer = window.setInterval(() => {
+          loadOperations();
+          if (currentAdminTab === "test-data") loadConversationArchive();
+        }, 15_000);
+      }
     } catch (error) {
       if (operationsTimer) window.clearInterval(operationsTimer);
       operationsTimer = 0;
       form.hidden = true;
+      $("testDataPanel").hidden = true;
+      $("settingsTabs").hidden = true;
       authPanel.hidden = false;
       setConnection("error", error.status === 401 ? text.unauthorized : error.message);
       tokenInput.focus();
@@ -134,6 +189,8 @@
   function fill(config) {
     $("demoMode").checked = config.demoMode;
     renderChatState(config.chatEnabled);
+    $("historyEnabled").checked = config.chatHistory?.enabled !== false;
+    $("historyRetentionDays").value = String(config.chatHistory?.retentionDays || 7);
     $("aiApiStyle").value = config.ai.apiStyle;
     $("aiBaseUrl").value = config.ai.baseUrl;
     $("aiModel").value = config.ai.model;
@@ -213,6 +270,20 @@
     button.classList.toggle("success", !chatEnabled);
   }
 
+  function switchAdminTab(tab, updateHash = true) {
+    currentAdminTab = tab === "test-data" ? "test-data" : "config";
+    if (updateHash) {
+      window.history.replaceState(null, "", currentAdminTab === "test-data" ? "#test-data" : "#config");
+    }
+    form.hidden = currentAdminTab !== "config";
+    $("testDataPanel").hidden = currentAdminTab !== "test-data";
+    document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.adminTab === currentAdminTab);
+      button.setAttribute("aria-selected", String(button.dataset.adminTab === currentAdminTab));
+    });
+    if (currentAdminTab === "test-data") loadConversationArchive();
+  }
+
   async function loadOperations() {
     try {
       const payload = await request("/api/admin/operations");
@@ -229,6 +300,8 @@
         if (operationsTimer) window.clearInterval(operationsTimer);
         operationsTimer = 0;
         form.hidden = true;
+        $("testDataPanel").hidden = true;
+        $("settingsTabs").hidden = true;
         authPanel.hidden = false;
         setConnection("error", text.unauthorized);
       }
@@ -339,7 +412,9 @@
       settings_saved: text.settingsSaved,
       chat_state_changed: text.chatStateChanged,
       admin_auth: text.adminAuth,
-      chat_blocked: text.chatBlocked
+      chat_blocked: text.chatBlocked,
+      conversation_settings: text.conversationSettings,
+      conversation_deleted: text.conversationDeleted
     }[type] || type;
   }
 
@@ -355,6 +430,328 @@
     const details = Object.entries(event.details || {}).map(([key, value]) => `${key}: ${value}`);
     if (event.browserId) details.unshift(`#${event.browserId}`);
     return details.join(" · ");
+  }
+
+  async function loadConversationArchive() {
+    try {
+      const payload = await request("/api/admin/conversations");
+      archiveOverview = payload.archive;
+      $("historyEnabled").checked = archiveOverview.settings.enabled;
+      $("historyRetentionDays").value = String(archiveOverview.settings.retentionDays);
+      $("archiveUserTotal").textContent = String(archiveOverview.totals.users);
+      $("archiveConversationTotal").textContent = String(archiveOverview.totals.conversations);
+      $("archiveMessageTotal").textContent = String(archiveOverview.totals.messages);
+      $("archiveStorageState").textContent = archiveOverview.persistenceHealthy ? text.storageHealthy : text.storageFailed;
+      $("archiveStorageState").dataset.state = archiveOverview.persistenceHealthy ? "ready" : "error";
+      ensureArchiveSelection();
+      renderArchiveUsers();
+      renderArchiveConversations();
+      if (selectedConversationId) {
+        await loadConversationDetail(selectedConversationId);
+      } else {
+        renderArchiveMessagePlaceholder(text.selectConversation);
+      }
+    } catch (error) {
+      renderArchiveError(error);
+    }
+  }
+
+  function ensureArchiveSelection() {
+    const users = archiveOverview?.users || [];
+    if (!users.some((user) => user.browserId === selectedBrowserId)) {
+      selectedBrowserId = users[0]?.browserId || "";
+    }
+    const conversations = archiveConversationsForSelectedUser();
+    if (!conversations.some((conversation) => conversation.id === selectedConversationId)) {
+      selectedConversationId = conversations[0]?.id || "";
+    }
+  }
+
+  function archiveConversationsForSelectedUser() {
+    return (archiveOverview?.conversations || [])
+      .filter((conversation) => conversation.browserId === selectedBrowserId);
+  }
+
+  function renderArchiveUsers() {
+    const container = $("archiveUserList");
+    container.replaceChildren();
+    const users = archiveOverview?.users || [];
+    if (!users.length) {
+      container.append(archiveEmpty(text.noTestUsers));
+      return;
+    }
+    for (const user of users) {
+      const item = document.createElement("div");
+      const title = document.createElement("strong");
+      const meta = document.createElement("small");
+      const actions = document.createElement("div");
+      const count = document.createElement("span");
+      const remove = document.createElement("button");
+      item.className = `archive-list-item${user.browserId === selectedBrowserId ? " active" : ""}`;
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+      title.textContent = `${user.browser} · ${user.platform}`;
+      meta.textContent = `#${user.browserId} · ${user.ip} · ${formatTime(user.lastSeen)}`;
+      actions.className = "item-actions";
+      count.textContent = `${user.conversationCount} ${text.conversationsCount} · ${user.messageCount} ${text.messagesCount}`;
+      remove.type = "button";
+      remove.className = "archive-delete";
+      remove.textContent = text.deleteUserData;
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteBrowserConversations(user.browserId);
+      });
+      actions.append(count, remove);
+      item.append(title, meta, actions);
+      item.addEventListener("click", () => selectArchiveUser(user.browserId));
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") selectArchiveUser(user.browserId);
+      });
+      container.append(item);
+    }
+  }
+
+  function selectArchiveUser(browserId) {
+    selectedBrowserId = browserId;
+    selectedConversationId = archiveConversationsForSelectedUser()[0]?.id || "";
+    renderArchiveUsers();
+    renderArchiveConversations();
+    if (selectedConversationId) loadConversationDetail(selectedConversationId);
+    else renderArchiveMessagePlaceholder(text.noConversations);
+  }
+
+  function renderArchiveConversations() {
+    const container = $("archiveConversationList");
+    container.replaceChildren();
+    const conversations = archiveConversationsForSelectedUser();
+    if (!conversations.length) {
+      container.append(archiveEmpty(selectedBrowserId ? text.noConversations : text.selectConversation));
+      return;
+    }
+    for (const conversation of conversations) {
+      const item = document.createElement("div");
+      const title = document.createElement("strong");
+      const preview = document.createElement("small");
+      const actions = document.createElement("div");
+      const count = document.createElement("span");
+      const remove = document.createElement("button");
+      item.className = `archive-list-item${conversation.id === selectedConversationId ? " active" : ""}`;
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+      title.textContent = formatTime(conversation.startedAt);
+      preview.textContent = conversation.preview || `#${conversation.id}`;
+      actions.className = "item-actions";
+      count.textContent = `${conversation.messageCount} ${text.messagesCount}`;
+      remove.type = "button";
+      remove.className = "archive-delete";
+      remove.textContent = text.deleteConversationData;
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteOneConversation(conversation.id);
+      });
+      actions.append(count, remove);
+      item.append(title, preview, actions);
+      item.addEventListener("click", () => selectArchiveConversation(conversation.id));
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") selectArchiveConversation(conversation.id);
+      });
+      container.append(item);
+    }
+  }
+
+  function selectArchiveConversation(id) {
+    selectedConversationId = id;
+    renderArchiveConversations();
+    loadConversationDetail(id);
+  }
+
+  async function loadConversationDetail(id) {
+    try {
+      const payload = await request(`/api/admin/conversations/${encodeURIComponent(id)}`);
+      renderConversationDetail(payload.conversation);
+    } catch (error) {
+      if (error.status === 404) {
+        selectedConversationId = "";
+        await loadConversationArchive();
+        return;
+      }
+      renderArchiveMessagePlaceholder(text.archiveLoadFailed);
+    }
+  }
+
+  function renderConversationDetail(conversation) {
+    const heading = $("archiveConversationHeading");
+    heading.replaceChildren();
+    const title = document.createElement("h3");
+    const meta = document.createElement("small");
+    title.textContent = text.conversationDetail;
+    meta.textContent = `#${conversation.id} · ${formatTime(conversation.startedAt)}`;
+    heading.append(title, meta);
+    const container = $("archiveMessages");
+    container.replaceChildren();
+    for (const message of conversation.messages) container.append(renderArchivedMessage(message));
+  }
+
+  function renderArchivedMessage(message) {
+    const item = document.createElement("section");
+    const header = document.createElement("header");
+    const role = document.createElement("strong");
+    const time = document.createElement("time");
+    const body = document.createElement("p");
+    item.className = `archive-message ${message.role}`;
+    role.textContent = {
+      user: text.roleUser,
+      coco: text.roleCoco,
+      system: text.roleSystem
+    }[message.role] || message.role;
+    time.dateTime = message.at;
+    time.textContent = formatTime(message.at);
+    body.textContent = message.message;
+    header.append(role, time);
+    item.append(header, body);
+    if (message.metadata) item.append(renderArchiveMetadata(message.metadata));
+    return item;
+  }
+
+  function renderArchiveMetadata(metadata) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "archive-metadata";
+    const values = [
+      [text.metaGames, metadata.games?.join(", ")],
+      [text.metaGame, metadata.game],
+      [text.metaRounds, metadata.rounds],
+      [text.metaBetLevel, metadata.betLevel],
+      [text.metaWager, metadata.wagerPerRound],
+      [text.metaTotalBet, metadata.totalBet],
+      [text.metaTotalWin, metadata.totalWin],
+      [text.metaNet, metadata.net],
+      [text.metaBalance, metadata.balanceAfter],
+      [text.metaCurrency, metadata.currency]
+    ];
+    for (const [label, value] of values) {
+      if (value === undefined || value === "") continue;
+      const chip = document.createElement("span");
+      chip.textContent = `${label}: ${typeof value === "number" ? formatNumber(value) : value}`;
+      wrapper.append(chip);
+    }
+    if (metadata.roundResults?.length) wrapper.append(renderRoundResults(metadata.roundResults));
+    return wrapper;
+  }
+
+  function renderRoundResults(rounds) {
+    const table = document.createElement("table");
+    const head = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    const body = document.createElement("tbody");
+    table.className = "round-results";
+    [text.round, text.bet, text.win].forEach((label) => {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      headerRow.append(cell);
+    });
+    head.append(headerRow);
+    for (const round of rounds) {
+      const row = document.createElement("tr");
+      [round.round, formatNumber(round.bet), formatNumber(round.win)].forEach((value) => {
+        const cell = document.createElement("td");
+        cell.textContent = String(value);
+        row.append(cell);
+      });
+      body.append(row);
+    }
+    table.append(head, body);
+    return table;
+  }
+
+  function renderArchiveMessagePlaceholder(message) {
+    $("archiveConversationHeading").replaceChildren();
+    const heading = document.createElement("h3");
+    heading.textContent = text.conversationDetail;
+    $("archiveConversationHeading").append(heading);
+    $("archiveMessages").replaceChildren(archiveEmpty(message));
+  }
+
+  function renderArchiveError(error) {
+    $("archiveUserList").replaceChildren(archiveEmpty(text.archiveLoadFailed));
+    $("archiveConversationList").replaceChildren(archiveEmpty(text.archiveLoadFailed));
+    renderArchiveMessagePlaceholder(text.archiveLoadFailed);
+    if (error.status === 401) {
+      $("settingsTabs").hidden = true;
+      form.hidden = true;
+      $("testDataPanel").hidden = true;
+      authPanel.hidden = false;
+      setConnection("error", text.unauthorized);
+    }
+  }
+
+  function archiveEmpty(message) {
+    const empty = document.createElement("div");
+    empty.className = "archive-list-empty";
+    empty.textContent = message;
+    return empty;
+  }
+
+  async function saveConversationSettings() {
+    const button = $("historySettingsSave");
+    const retentionDays = Number($("historyRetentionDays").value);
+    if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 90) {
+      $("historyRetentionDays").focus();
+      return;
+    }
+    button.disabled = true;
+    $("historySaveStatus").textContent = text.loading;
+    try {
+      await request("/api/admin/conversation-settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          enabled: $("historyEnabled").checked,
+          retentionDays
+        })
+      });
+      $("historySaveStatus").textContent = text.archiveSaved;
+      await loadConversationArchive();
+      await loadOperations();
+    } catch (error) {
+      $("historySaveStatus").textContent = `${text.saveFailed}: ${error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function clearAllConversations() {
+    if (!window.confirm(text.clearAllConfirm)) return;
+    await deleteArchiveRequest("/api/admin/conversations", { clearSelection: true });
+  }
+
+  async function deleteBrowserConversations(browserId) {
+    if (!window.confirm(text.deleteUserConfirm)) return;
+    await deleteArchiveRequest(`/api/admin/conversation-users/${encodeURIComponent(browserId)}`, { clearSelection: true });
+  }
+
+  async function deleteOneConversation(id) {
+    if (!window.confirm(text.deleteConversationConfirm)) return;
+    await deleteArchiveRequest(`/api/admin/conversations/${encodeURIComponent(id)}`, { clearConversation: true });
+  }
+
+  async function deleteArchiveRequest(url, options) {
+    try {
+      await request(url, { method: "DELETE" });
+      if (options.clearSelection) {
+        selectedBrowserId = "";
+        selectedConversationId = "";
+      } else if (options.clearConversation) {
+        selectedConversationId = "";
+      }
+      $("historySaveStatus").textContent = text.archiveDeleted;
+      await loadConversationArchive();
+      await loadOperations();
+    } catch (error) {
+      $("historySaveStatus").textContent = `${text.saveFailed}: ${error.message}`;
+    }
+  }
+
+  function formatNumber(value) {
+    return new Intl.NumberFormat(zh ? "zh-CN" : "en-US", { maximumFractionDigits: 2 }).format(value);
   }
 
   async function saveConfig(event) {

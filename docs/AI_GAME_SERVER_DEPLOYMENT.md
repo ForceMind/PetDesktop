@@ -112,6 +112,8 @@ HOST=0.0.0.0
 PORT=8787
 DEMO_MODE=true
 CHAT_ENABLED=true
+CHAT_HISTORY_ENABLED=true
+CHAT_HISTORY_RETENTION_DAYS=7
 
 AI_API_KEY=
 AI_BASE_URL=https://api.deepseek.com
@@ -210,11 +212,14 @@ sudo ./deploy-linux.sh --skip-tests
 
 - 最近打开过 Coco 的匿名浏览器、平台、脱敏 IP、打开次数和最后活动时间；
 - 新对话、聊天、游戏、设置变更与拦截结果；
+- 在独立“测试数据”页签按匿名浏览器查看用户与 Coco 的测试对话、确认卡和游戏结果；
 - 当前聊天总开关，并可一键关闭或重新开启新的聊天、AI 和游戏请求。
 
-页面不会显示聊天原文、地址栏参数值、Key、Token 或 IG。脱敏运行日志写入
-`ai-game-server/.data/operations.jsonl`，该目录已被 Git 忽略。关闭聊天后设置页和健康检查
-仍可使用；状态会写回 `.env`，服务器重启后不会自动恢复。
+普通运行日志不会包含聊天原文、地址栏参数值、Key、Token 或 IG；聊天正文只保存在
+`ADMIN_TOKEN` 保护的“测试数据”页签及私有 `conversations.json` 中，默认 7 天，并会遮盖
+已知敏感值。脱敏运行日志写入 `ai-game-server/.data/operations.jsonl`，两类文件所在的
+`.data` 目录均被 Git 忽略。关闭聊天后设置页和健康检查仍可使用；状态会写回 `.env`，
+服务器重启后不会自动恢复。
 
 systemd：
 
@@ -295,5 +300,6 @@ sudo ./deploy-linux.sh
 - 可选 Nginx 模式会把 Node 改为只监听 `127.0.0.1`，由 Nginx 对外提供访问。
 - Settings API 不会返回已保存的密钥原值；浏览器中的管理 Token 只保存在当前标签页。
 - 浏览器活动只使用匿名短标识和脱敏 IP；运行日志不得增加聊天原文或地址栏参数值。
+- 测试对话只能由 Settings Token 读取，必须限期保存、支持删除并在前台明确提示；不得写入系统提示词、Key、IG 或启动参数值。
 - 聊天总开关必须由 Settings Token 授权，并在 Agent、AI 和游戏适配器之前硬拦截新请求。
 - 游戏执行仍必须经过确认卡、下注档位、总额、频率、白名单、余额和结果数字校验。

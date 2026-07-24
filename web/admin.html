@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Coco Settings</title>
   <link rel="icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./admin.css?v=24">
+  <link rel="stylesheet" href="./admin.css?v=25">
 </head>
 <body>
   <header class="admin-topbar">
@@ -48,6 +48,11 @@
         <button id="connectButton" class="button primary" type="button" data-i18n="connect">Connect</button>
       </div>
     </section>
+
+    <nav id="settingsTabs" class="settings-tabs" hidden aria-label="Settings sections">
+      <button class="settings-tab active" type="button" data-admin-tab="config" data-i18n="configurationTab">Configuration</button>
+      <button class="settings-tab" type="button" data-admin-tab="test-data" data-i18n="testDataTab">Test data</button>
+    </nav>
 
     <form id="configForm" hidden>
       <section class="config-section">
@@ -173,7 +178,7 @@
         <div class="section-heading">
           <div><span>07</span><h2 data-i18n="operations">Browser activity and logs</h2></div>
           <div class="section-tools">
-            <p data-i18n="operationsHelp">No chat text, keys, IG values or URL parameter values are recorded.</p>
+            <p data-i18n="operationsHelp">Operation logs contain no chat text. Conversation content is isolated in the protected Test data tab.</p>
             <button id="operationsRefresh" class="button secondary compact-button" type="button" data-i18n="refresh">Refresh</button>
           </div>
         </div>
@@ -204,7 +209,50 @@
         <button id="saveButton" class="button primary" type="submit" data-i18n="saveApply">Save & apply</button>
       </div>
     </form>
+
+    <section id="testDataPanel" class="test-data-panel" hidden>
+      <section class="config-section archive-controls">
+        <div class="section-heading">
+          <div><span>01</span><h2 data-i18n="archiveTitle">Conversation test data</h2></div>
+          <p data-i18n="archiveHelp">Grouped by anonymous browser. Keys, IG values, URL parameters and internal prompts are never stored.</p>
+        </div>
+        <div class="archive-control-row">
+          <label class="toggle">
+            <span><strong data-i18n="recordConversations">Record test conversations</strong><small data-i18n="recordConversationsHelp">When disabled, new messages stop being stored. Existing records remain until they expire or are deleted.</small></span>
+            <input id="historyEnabled" type="checkbox"><i></i>
+          </label>
+          <label class="retention-field"><span data-i18n="retentionDays">Keep for days</span><input id="historyRetentionDays" type="number" min="1" max="90" value="7"></label>
+          <button id="historySettingsSave" class="button primary" type="button" data-i18n="saveArchiveSettings">Save recording settings</button>
+          <button id="archiveRefresh" class="button secondary" type="button" data-i18n="refresh">Refresh</button>
+          <button id="archiveClearAll" class="button danger" type="button" data-i18n="clearAllTestData">Clear all test data</button>
+        </div>
+        <p id="historySaveStatus" class="inline-status"></p>
+      </section>
+
+      <section class="config-section">
+        <div class="archive-summary">
+          <div><strong id="archiveUserTotal">0</strong><span data-i18n="testUsers">Test users</span></div>
+          <div><strong id="archiveConversationTotal">0</strong><span data-i18n="testConversations">Conversations</span></div>
+          <div><strong id="archiveMessageTotal">0</strong><span data-i18n="testMessages">Messages</span></div>
+          <div><strong id="archiveStorageState">—</strong><span data-i18n="archiveStorage">Private storage</span></div>
+        </div>
+        <div class="archive-layout">
+          <aside class="archive-column users-column">
+            <div class="archive-column-heading"><h3 data-i18n="testUserList">Test users</h3></div>
+            <div id="archiveUserList" class="archive-list"></div>
+          </aside>
+          <aside class="archive-column conversations-column">
+            <div class="archive-column-heading"><h3 data-i18n="conversationList">Conversations</h3></div>
+            <div id="archiveConversationList" class="archive-list"></div>
+          </aside>
+          <article class="archive-column conversation-detail">
+            <div id="archiveConversationHeading" class="archive-column-heading"><h3 data-i18n="conversationDetail">Conversation details</h3></div>
+            <div id="archiveMessages" class="archive-messages"></div>
+          </article>
+        </div>
+      </section>
+    </section>
   </main>
-  <script src="./admin.js?v=24" defer></script>
+  <script src="./admin.js?v=25" defer></script>
 </body>
 </html>

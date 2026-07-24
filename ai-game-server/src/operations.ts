@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { appendFile, mkdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
@@ -48,7 +48,7 @@ export class OperationsMonitor {
   observeBrowser(input: BrowserObservation) {
     const now = new Date().toISOString();
     const parsed = describeUserAgent(input.userAgent ?? "");
-    const id = shortId(input.id);
+    const id = anonymousBrowserId(input.id);
     const existing = this.browsers.get(id);
     const activity: BrowserActivity = existing
       ? {
@@ -74,7 +74,7 @@ export class OperationsMonitor {
         };
     this.browsers.set(id, activity);
     this.record("page_open", "ok", {
-      browserId: id,
+      browserId: input.id,
       details: {
         browser: activity.browser,
         platform: activity.platform,
@@ -86,7 +86,7 @@ export class OperationsMonitor {
 
   touchBrowser(id: string | undefined, pathValue: string) {
     if (!id) return;
-    const safeId = shortId(id);
+    const safeId = anonymousBrowserId(id);
     const existing = this.browsers.get(safeId);
     if (!existing) return;
     this.browsers.set(safeId, {
@@ -107,7 +107,7 @@ export class OperationsMonitor {
       at: new Date().toISOString(),
       type: safeToken(type),
       outcome,
-      browserId: input.browserId ? shortId(input.browserId) : undefined,
+      browserId: input.browserId ? anonymousBrowserId(input.browserId) : undefined,
       details: sanitizeDetails(input.details ?? {})
     };
     this.events.push(event);
@@ -212,8 +212,9 @@ function safeToken(value: string) {
   return /^[a-z][a-z0-9_]{0,39}$/.test(value) ? value : "unknown";
 }
 
-function shortId(value: string) {
-  return value.slice(0, 8);
+export function anonymousBrowserId(value: string) {
+  if (/^[a-f0-9]{12}$/i.test(value)) return value.toLowerCase();
+  return createHash("sha256").update(value).digest("hex").slice(0, 12);
 }
 
 function maskIp(value: string) {

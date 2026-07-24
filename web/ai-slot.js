@@ -53,6 +53,7 @@
       inputLabel: "Message Coco",
       placeholder: "For example: play JetSet for 1 round, bet 10",
       disclaimer: "Coco starts only after you confirm the card.",
+      privacyNotice: "For test review, this conversation may be stored for up to {days} days.",
       newChat: "New conversation",
       history: "Conversation history",
       historyTitle: "Conversation history",
@@ -105,6 +106,7 @@
       inputLabel: "给 Coco 发消息",
       placeholder: "例如：玩 JetSet 1 局，下注 10",
       disclaimer: "确认卡片前，Coco 不会开始游戏。",
+      privacyNotice: "为查看测试效果，本次对话可能会保存最多 {days} 天。",
       newChat: "新对话",
       history: "历史对话",
       historyTitle: "历史对话",
@@ -153,7 +155,8 @@
     traceDismissed: false,
     statusKey: "waiting",
     statusMode: "idle",
-    statusVars: {}
+    statusVars: {},
+    dataPolicy: { conversationRecording: false, retentionDays: 7 }
   };
 
   ui.launch.addEventListener("click", () => setOpen(ui.panel.hidden));
@@ -189,6 +192,18 @@
     return copy[language()][key] ?? copy.en[key] ?? key;
   }
 
+  function renderDisclaimer() {
+    if (state.viewingHistory) {
+      ui.disclaimer.textContent = t("historyReadOnly");
+      return;
+    }
+    const parts = [t("disclaimer")];
+    if (state.dataPolicy.conversationRecording) {
+      parts.push(t("privacyNotice").replace("{days}", String(state.dataPolicy.retentionDays || 7)));
+    }
+    ui.disclaimer.textContent = parts.join(" · ");
+  }
+
   function localize() {
     ui.title.textContent = t("title");
     ui.panel.setAttribute("aria-label", t("panelAria"));
@@ -206,7 +221,7 @@
     ui.inputLabel.textContent = t("inputLabel");
     ui.input.placeholder = t("placeholder");
     ui.send.textContent = t("send");
-    ui.disclaimer.textContent = state.viewingHistory ? t("historyReadOnly") : t("disclaimer");
+    renderDisclaimer();
     setStatus(state.statusKey, state.statusMode, state.statusVars);
     renderHistory();
   }
@@ -233,7 +248,7 @@
     state.sessionId = "";
     state.viewingHistory = false;
     ui.form.hidden = false;
-    ui.disclaimer.textContent = t("disclaimer");
+    renderDisclaimer();
     ui.messages.replaceChildren();
     state.trace.clear();
     state.traceDismissed = false;
@@ -249,6 +264,8 @@
       });
       const payload = await readJson(response);
       state.sessionId = payload.sessionId;
+      state.dataPolicy = payload.dataPolicy || state.dataPolicy;
+      renderDisclaimer();
       createConversation(payload.sessionId);
       appendMessage(payload.greeting);
       setStatus("connectedTest", "ready");
@@ -709,7 +726,7 @@
     state.sessionId = id;
     state.viewingHistory = true;
     ui.form.hidden = true;
-    ui.disclaimer.textContent = t("historyReadOnly");
+    renderDisclaimer();
     ui.messages.replaceChildren();
     state.trace.clear();
     state.traceDismissed = false;

@@ -8,6 +8,8 @@ const envSchema = z.object({
   HOST: z.string().default("127.0.0.1"),
   DEMO_MODE: booleanEnv,
   CHAT_ENABLED: booleanEnv,
+  CHAT_HISTORY_ENABLED: booleanEnv,
+  CHAT_HISTORY_RETENTION_DAYS: z.coerce.number().int().min(1).max(90).default(7),
   AI_API_KEY: z.string().optional().default(""),
   AI_API_STYLE: z.enum(["chat-completions", "responses"]).default("chat-completions"),
   AI_BASE_URL: z.string().url().default("https://api.deepseek.com"),
@@ -99,6 +101,10 @@ export const config = {
   host: env.HOST,
   demoMode: env.DEMO_MODE,
   chatEnabled: env.CHAT_ENABLED,
+  chatHistory: {
+    enabled: env.CHAT_HISTORY_ENABLED,
+    retentionDays: env.CHAT_HISTORY_RETENTION_DAYS
+  },
   ai: {
     apiKey: env.AI_API_KEY,
     apiStyle: env.AI_API_STYLE,

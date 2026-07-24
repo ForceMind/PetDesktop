@@ -162,7 +162,8 @@ describe("Admin control plane", () => {
     } as AppConfig;
     const switchServer = createApp(switchConfig, {
       envFile: switchEnvFile,
-      operationsFile: false
+      operationsFile: false,
+      conversationsFile: false
     }).listen(0, "127.0.0.1");
     await new Promise<void>((resolve) => switchServer.once("listening", resolve));
     const switchBase = `http://127.0.0.1:${(switchServer.address() as AddressInfo).port}`;
@@ -194,6 +195,7 @@ describe("Admin control plane", () => {
       });
       expect(bootstrapResponse.ok).toBe(true);
       const bootstrap = await bootstrapResponse.json();
+      expect(bootstrap.dataPolicy).toEqual({ conversationRecording: true, retentionDays: 7 });
       const chatResponse = await fetch(`${switchBase}/api/slot/chat`, {
         method: "POST",
         headers: { ...browserHeaders, "content-type": "application/json" },
@@ -204,6 +206,52 @@ describe("Admin control plane", () => {
         })
       });
       expect(chatResponse.ok).toBe(true);
+
+      const archiveResponse = await fetch(`${switchBase}/api/admin/conversations`, {
+        headers: browserHeaders
+      }).then((response) => response.json());
+      const archiveText = JSON.stringify(archiveResponse);
+      expect(archiveText).not.toContain(privateUserId);
+      expect(archiveResponse.archive.totals).toEqual({ users: 1, conversations: 1, messages: 3 });
+      const conversationId = archiveResponse.archive.conversations[0].id;
+      const conversation = await fetch(`${switchBase}/api/admin/conversations/${conversationId}`, {
+        headers: browserHeaders
+      }).then((response) => response.json());
+      expect(JSON.stringify(conversation)).toContain(privateMessage);
+      expect(JSON.stringify(conversation)).not.toContain(privateUserId);
+      expect(conversation.conversation.messages.map(
+        (message: { role: string }) => message.role
+      )).toEqual(["coco", "user", "coco"]);
+
+      const historyOff = await fetch(`${switchBase}/api/admin/conversation-settings`, {
+        method: "PUT",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({ enabled: false, retentionDays: 14 })
+      });
+      expect(historyOff.ok).toBe(true);
+      expect((await historyOff.json()).settings).toEqual({ enabled: false, retentionDays: 14 });
+      expect(await fs.readFile(switchEnvFile, "utf8")).toContain("CHAT_HISTORY_ENABLED=false");
+      expect(await fs.readFile(switchEnvFile, "utf8")).toContain("CHAT_HISTORY_RETENTION_DAYS=14");
+      const unrecordedMessage = "this message must not be archived while recording is off";
+      expect((await fetch(`${switchBase}/api/slot/chat`, {
+        method: "POST",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionId: bootstrap.sessionId,
+          message: unrecordedMessage,
+          language: "en"
+        })
+      })).ok).toBe(true);
+      const unchangedConversation = await fetch(`${switchBase}/api/admin/conversations/${conversationId}`, {
+        headers: browserHeaders
+      }).then((response) => response.text());
+      expect(unchangedConversation).not.toContain(unrecordedMessage);
+
+      expect((await fetch(`${switchBase}/api/admin/conversation-settings`, {
+        method: "PUT",
+        headers: { ...browserHeaders, "content-type": "application/json" },
+        body: JSON.stringify({ enabled: true, retentionDays: 7 })
+      })).ok).toBe(true);
 
       const initialOperations = await fetch(`${switchBase}/api/admin/operations`, {
         headers: browserHeaders
@@ -256,6 +304,16 @@ describe("Admin control plane", () => {
       expect(finalOperations.operations.events.filter(
         (event: { type: string }) => event.type === "chat_state_changed"
       )).toHaveLength(2);
+      expect((await fetch(`${switchBase}/api/admin/conversations/${conversationId}`, {
+        method: "DELETE",
+        headers: browserHeaders
+      })).ok).toBe(true);
+      const emptyArchive = await fetch(`${switchBase}/api/admin/conversations`, {
+        headers: browserHeaders
+      }).then((response) => response.json());
+      expect(emptyArchive.archive.conversations.some(
+        (conversation: { id: string }) => conversation.id === conversationId
+      )).toBe(false);
     } finally {
       await new Promise<void>((resolve, reject) => switchServer.close((error) => error ? reject(error) : resolve()));
     }

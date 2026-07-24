@@ -1,4 +1,4 @@
-const CACHE_NAME = "coco-web-pet-v24";
+const CACHE_NAME = "coco-web-pet-v25";
 const FRAME_CACHE_NAME = "coco-web-pet-frames-v1";
 const ACTIVE_CACHES = new Set([CACHE_NAME, FRAME_CACHE_NAME]);
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./ai-slot.css", "./app.js", "./ai-slot.js", "./settings", "./admin.css", "./admin.js", "./data.json", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
