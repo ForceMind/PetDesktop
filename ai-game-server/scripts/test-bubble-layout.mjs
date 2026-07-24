@@ -113,7 +113,7 @@ async function measureLayout(send, width, height) {
 }
 
 async function measureGameProgress(send) {
-  await send("Page.navigate", { url: `${appUrl}?game-progress=v22` });
+  await send("Page.navigate", { url: `${appUrl}?game-progress=v23` });
   await evaluatePromise(send, `new Promise((resolve, reject) => {
     const started = performance.now();
     const wait = () => {
@@ -142,7 +142,23 @@ async function measureGameProgress(send) {
     const wait = () => {
       const confirm = document.querySelector(".ai-slot-proposal button[data-action-id]");
       if (confirm) {
+        const trace = document.querySelector("#aiSlotTrace");
+        const observation = window.__cocoProgressObservation = {
+          traceVisibleDuringRun: false,
+          progress: "",
+          rows: []
+        };
+        const sample = () => {
+          observation.traceVisibleDuringRun ||= !trace.hidden;
+          observation.progress = document.querySelector("#aiSlotTraceProgress")?.textContent?.trim() || "";
+          observation.rows = [...trace.querySelectorAll("li")].map((row) => ({
+            label: row.querySelector("strong")?.textContent,
+            status: row.dataset.status
+          }));
+        };
+        new MutationObserver(sample).observe(trace, { attributes: true, childList: true, subtree: true });
         confirm.click();
+        sample();
         return resolve(true);
       }
       if (performance.now() - started > 10000) return reject(new Error("Confirmation card did not appear"));
@@ -155,15 +171,13 @@ async function measureGameProgress(send) {
       const started = performance.now();
       const wait = () => {
         const trace = document.querySelector("#aiSlotTrace");
-        const progress = document.querySelector("#aiSlotTraceProgress")?.textContent?.trim();
-        if (!trace.hidden && progress === "8 / 8") {
+        const observation = window.__cocoProgressObservation;
+        const resultCard = document.querySelector(".ai-slot-result");
+        if (resultCard && trace.hidden && observation?.progress === "8 / 8") {
           return resolve({
-            traceVisible: true,
-            progress,
-            rows: [...trace.querySelectorAll("li")].map((row) => ({
-              label: row.querySelector("strong")?.textContent,
-              status: row.dataset.status
-            })),
+            ...observation,
+            traceHiddenAfterResult: true,
+            closeAvailable: Boolean(document.querySelector("#aiSlotTraceClose")),
             stageStatusDisplay: getComputedStyle(document.querySelector(".stage-status")).display
           });
         }
@@ -177,7 +191,13 @@ async function measureGameProgress(send) {
   });
   if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
   const value = result.result.value;
-  if (!value.traceVisible || value.rows.length !== 8 || value.rows.some((row) => row.status !== "passed")) {
+  if (
+    !value.traceVisibleDuringRun
+    || !value.traceHiddenAfterResult
+    || !value.closeAvailable
+    || value.rows.length !== 8
+    || value.rows.some((row) => row.status !== "passed")
+  ) {
     throw new Error(`Game progress is incomplete: ${JSON.stringify(value)}`);
   }
   if (value.stageStatusDisplay !== "none") {

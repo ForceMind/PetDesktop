@@ -19,6 +19,7 @@
     traceTitle: document.getElementById("aiSlotTraceTitle"),
     traceList: document.getElementById("aiSlotTraceList"),
     traceProgress: document.getElementById("aiSlotTraceProgress"),
+    traceClose: document.getElementById("aiSlotTraceClose"),
     form: document.getElementById("aiSlotForm"),
     inputLabel: document.getElementById("aiSlotInputLabel"),
     input: document.getElementById("aiSlotInput"),
@@ -60,6 +61,7 @@
       historyReadOnly: "This is an earlier conversation. Start a new one to continue chatting.",
       viewingHistory: "Viewing an earlier conversation",
       traceTitle: "Coco’s game progress",
+      closeProgress: "Close game progress",
       rounds: "rounds",
       maxBet: "Total bet",
       confirm: "Confirm and play",
@@ -110,6 +112,7 @@
       historyReadOnly: "这里是以前的对话；开始新对话后可以继续聊天。",
       viewingHistory: "正在查看以前的对话",
       traceTitle: "Coco 的游戏进度",
+      closeProgress: "关闭游戏进度",
       rounds: "局",
       maxBet: "总下注",
       confirm: "确认并开始",
@@ -145,6 +148,7 @@
     viewingHistory: false,
     conversations: readHistory(),
     trace: new Map(),
+    traceDismissed: false,
     statusKey: "waiting",
     statusMode: "idle",
     statusVars: {}
@@ -166,6 +170,7 @@
     }
   });
   ui.input.addEventListener("input", resizeInput);
+  ui.traceClose.addEventListener("click", dismissTrace);
   window.addEventListener("coco:languagechange", localize);
   window.addEventListener("coco:settingspanelchange", (event) => {
     if (event.detail?.open) setOpen(false);
@@ -194,6 +199,8 @@
     ui.historyNew.textContent = t("newChat");
     ui.trace.setAttribute("aria-label", t("traceTitle"));
     ui.traceTitle.textContent = t("traceTitle");
+    ui.traceClose.setAttribute("aria-label", t("closeProgress"));
+    ui.traceClose.title = t("closeProgress");
     ui.inputLabel.textContent = t("inputLabel");
     ui.input.placeholder = t("placeholder");
     ui.send.textContent = t("send");
@@ -227,6 +234,7 @@
     ui.disclaimer.textContent = t("disclaimer");
     ui.messages.replaceChildren();
     state.trace.clear();
+    state.traceDismissed = false;
     ui.trace.hidden = true;
     renderTrace();
     setHistoryOpen(false);
@@ -378,6 +386,7 @@
     if (state.busy) return;
     button.disabled = true;
     state.trace.clear();
+    state.traceDismissed = false;
     ui.trace.hidden = false;
     renderTrace();
     setBusy(true, "validation");
@@ -391,6 +400,7 @@
       await consumeStream(response.body);
     } catch (error) {
       appendSystemError(messageOf(error));
+      dismissTrace();
       setStatus("stopped", "error");
       button.disabled = false;
     } finally {
@@ -418,7 +428,7 @@
   function handleStreamEvent(event) {
     if (event.type === "step") {
       state.trace.set(event.step.id, event.step);
-      ui.trace.hidden = false;
+      if (!state.traceDismissed) ui.trace.hidden = false;
       renderTrace();
       return;
     }
@@ -433,6 +443,7 @@
       appendMessage(event.reply);
       const result = event.reply.result;
       if (result) notifyPet("reactToSlot", result, event.reply.message);
+      dismissTrace();
       setStatus("completed", "ready");
     }
   }
@@ -456,6 +467,12 @@
       row.append(marker, content);
       ui.traceList.append(row);
     }
+    scrollMessages();
+  }
+
+  function dismissTrace() {
+    state.traceDismissed = true;
+    ui.trace.hidden = true;
     scrollMessages();
   }
 
@@ -689,6 +706,7 @@
     ui.disclaimer.textContent = t("historyReadOnly");
     ui.messages.replaceChildren();
     state.trace.clear();
+    state.traceDismissed = false;
     ui.trace.hidden = true;
     renderTrace();
     conversation.messages.forEach((item) => appendMessage(item, { persist: false, historical: true }));

@@ -170,8 +170,15 @@
   max-height: 210px; overflow: auto; margin: 0 16px 12px; padding: 12px;
   border: 1px solid var(--line); border-radius: 14px; background: rgba(0,0,0,.16);
 }
-.ai-slot-trace-title { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; }
+.ai-slot-trace-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 11px; }
 .ai-slot-trace-title span { color: var(--accent-2); font-family: ui-monospace, monospace; }
+.ai-slot-trace-actions { display: flex; align-items: center; gap: 8px; }
+.ai-slot-trace-close {
+  display: grid; place-items: center; width: 22px; height: 22px; padding: 0;
+  border-radius: 50%; background: rgba(255,255,255,.07); color: var(--muted);
+  font-size: 16px; line-height: 1;
+}
+.ai-slot-trace-close:hover { background: rgba(255,255,255,.13); color: var(--text); }
 .ai-slot-trace ol { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .ai-slot-trace li { display: flex; gap: 8px; color: var(--muted); }
 .ai-slot-trace li i {

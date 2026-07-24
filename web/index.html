@@ -15,7 +15,7 @@
   <link rel="icon" href="./icons/icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css?v=22">
-  <link rel="stylesheet" href="./ai-slot.css?v=22">
+  <link rel="stylesheet" href="./ai-slot.css?v=23">
 </head>
 <body>
   <div class="app-shell">
@@ -101,7 +101,13 @@
     </section>
     <div id="aiSlotMessages" class="ai-slot-messages" role="log" aria-live="polite"></div>
     <section id="aiSlotTrace" class="ai-slot-trace" aria-label="Coco's game progress" hidden>
-      <div class="ai-slot-trace-title"><strong id="aiSlotTraceTitle">Coco's game progress</strong><span id="aiSlotTraceProgress">0 / 8</span></div>
+      <div class="ai-slot-trace-title">
+        <strong id="aiSlotTraceTitle">Coco's game progress</strong>
+        <div class="ai-slot-trace-actions">
+          <span id="aiSlotTraceProgress">0 / 8</span>
+          <button id="aiSlotTraceClose" class="ai-slot-trace-close" type="button" aria-label="Close game progress" title="Close game progress">×</button>
+        </div>
+      </div>
       <ol id="aiSlotTraceList"></ol>
     </section>
     <form id="aiSlotForm" class="ai-slot-composer">
@@ -112,6 +118,6 @@
     <p id="aiSlotDisclaimer" class="ai-slot-disclaimer">Coco starts only after you confirm the card.</p>
   </aside>
   <script src="./app.js?v=20" defer></script>
-  <script src="./ai-slot.js?v=22" defer></script>
+  <script src="./ai-slot.js?v=23" defer></script>
 </body>
 </html>
